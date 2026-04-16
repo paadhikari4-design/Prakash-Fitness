@@ -1,22 +1,24 @@
 {
   "expo": {
-    "name": "workout-app",
-    "slug": "workout-app",
+    "name": "Prakash Fitness",
+    "slug": "iron-pulse",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "workoutapp",
+    "scheme": "ironpulse",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#09090b"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ironpulse.app"
     },
     "android": {
+      "package": "com.ironpulse.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"

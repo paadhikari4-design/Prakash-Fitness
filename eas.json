@@ -1,0 +1,28 @@
+{
+  "cli": {
+    "version": ">= 14.1.1",
+    "appExtensions": {
+      "com.ironpulse.app": {
+        "appleTeamId": "YOUR_TEAM_ID_HERE"
+      }
+    }
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "android": {
+        "buildType": "apk"
+      },
+      "ios": {
+        "simulator": true
+      }
+    },
+    "production": {}
+  },
+  "submit": {
+    "production": {}
+  }
+}
