@@ -1,12 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { COLORS } from '@/constants/Colors';
-import { Play, Square, RotateCcw, Plus, Minus } from 'lucide-react-native';
+import { Play, Square, RotateCcw, Plus, Minus, Zap } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 
 import { useWorkout } from '@/context/WorkoutContext';
 
 export default function TimerScreen() {
   const { timeLeft, setTimeLeft, initialTime, setInitialTime, isTimerActive, setIsTimerActive } = useWorkout();
+
+  // Pulse effect logic
+  useEffect(() => {
+    if (isTimerActive && timeLeft > 0 && timeLeft <= 5) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    if (timeLeft === 0 && isTimerActive) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    }
+  }, [timeLeft, isTimerActive]);
 
   const presets = [
     { label: '30s Rest', time: 30 },
@@ -29,9 +40,10 @@ export default function TimerScreen() {
   };
 
   const setPreset = (seconds: number) => {
-    setIsTimerActive(false);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setInitialTime(seconds);
     setTimeLeft(seconds);
+    setIsTimerActive(true); // Auto-start for efficiency
   };
 
   const adjustTime = (seconds: number) => {

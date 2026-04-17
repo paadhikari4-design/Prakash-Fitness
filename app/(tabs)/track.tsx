@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, ScrollView, TouchableOpacity, TextInput, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { COLORS } from '@/constants/Colors';
-import { Check, Plus, Trash2, Play, Activity, Mic, MicOff, Ghost } from 'lucide-react-native';
+import { Check, Plus, Trash2, Play, Activity, Mic, MicOff, Ghost, Camera, Copy, Search } from 'lucide-react-native';
 import { useWorkout, WorkoutSession, Exercise, Routine } from '@/context/WorkoutContext';
+import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
+import { EXERCISE_DATA } from '@/app/(tabs)/library'; // Import shared library
 
 export default function TrackScreen() {
   const { history, addWorkout, exercises, setExercises, workoutTime, setWorkoutTime, routines, userProfile } = useWorkout();
   const [voiceMode, setVoiceMode] = useState(false);
+  const [activeExerciseSearchId, setActiveExerciseSearchId] = useState<string | null>(null);
+  const router = useRouter();
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
@@ -97,6 +101,22 @@ export default function TrackScreen() {
           done: false 
         }],
       };
+    }));
+  };
+
+  const cloneSet = (exerciseId: string, setIndex: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setExercises(exercises.map(e => {
+      if (e.id !== exerciseId) return e;
+      const targetSet = e.sets[setIndex];
+      const newSet = {
+        ...targetSet,
+        id: Date.now().toString() + Math.random().toString(36).substr(2, 4),
+        done: false
+      };
+      const newSets = [...e.sets];
+      newSets.splice(setIndex + 1, 0, newSet);
+      return { ...e, sets: newSets };
     }));
   };
 
@@ -231,12 +251,42 @@ export default function TrackScreen() {
                   placeholder="Exercise Name..."
                   placeholderTextColor={COLORS.textSecondary}
                   value={exercise.name}
-                  onChangeText={(text) => updateExerciseName(exercise.id, text)}
+                  onChangeText={(text) => {
+                    updateExerciseName(exercise.id, text);
+                    setActiveExerciseSearchId(text ? exercise.id : null);
+                  }}
+                  onFocus={() => setActiveExerciseSearchId(exercise.name ? exercise.id : null)}
+                  onBlur={() => setTimeout(() => setActiveExerciseSearchId(null), 200)}
                 />
                 <TouchableOpacity onPress={() => removeExercise(exercise.id)} style={styles.deleteBtn}>
                   <Trash2 size={20} color="#ff4444" />
                 </TouchableOpacity>
               </View>
+
+              {activeExerciseSearchId === exercise.id && exercise.name.length > 0 && (
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false} 
+                  style={styles.suggestionRow}
+                  contentContainerStyle={{ paddingHorizontal: 4 }}
+                >
+                  {EXERCISE_DATA.filter(ex => ex.name.toLowerCase().includes(exercise.name.toLowerCase()))
+                    .slice(0, 8)
+                    .map(suggestion => (
+                      <TouchableOpacity 
+                        key={suggestion.id} 
+                        style={styles.suggestionBadge}
+                        onPress={() => {
+                          updateExerciseName(exercise.id, suggestion.name);
+                          setActiveExerciseSearchId(null);
+                        }}
+                      >
+                        <Text style={styles.suggestionText}>{suggestion.name}</Text>
+                      </TouchableOpacity>
+                    ))
+                  }
+                </ScrollView>
+              )}
 
               <View style={styles.setListHeader}>
                 <Text style={[styles.setColumnText, { width: 40 }]}>Set</Text>
@@ -283,6 +333,13 @@ export default function TrackScreen() {
                       >
                         <Check size={16} color={set.done ? COLORS.background : COLORS.textSecondary} />
                       </TouchableOpacity>
+
+                      <TouchableOpacity 
+                        style={styles.cloneBtn}
+                        onPress={() => cloneSet(exercise.id, index)}
+                      >
+                        <Copy size={16} color={COLORS.primary} />
+                      </TouchableOpacity>
                     </View>
                     
                     {ghostData && (
@@ -322,6 +379,25 @@ export default function TrackScreen() {
           </LinearGradient>
         </TouchableOpacity>
       </View>
+
+      <TouchableOpacity 
+        style={styles.hyperScanFab} 
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          router.push('/modal');
+        }}
+        activeOpacity={0.9}
+      >
+        <LinearGradient
+          colors={['#10b981', '#059669']}
+          style={styles.hyperScanInner}
+        >
+          <Camera size={28} color="#fff" />
+          <View style={styles.hyperScanBadge}>
+            <Text style={styles.hyperScanBadgeText}>AI</Text>
+          </View>
+        </LinearGradient>
+      </TouchableOpacity>
     </KeyboardAvoidingView>
   );
 }
@@ -558,5 +634,70 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: COLORS.primary,
+  },
+  suggestionRow: {
+    marginBottom: 12,
+    marginTop: -4,
+  },
+  suggestionBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: COLORS.surfaceLight,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  suggestionText: {
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  cloneBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: COLORS.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(110, 89, 255, 0.2)',
+  },
+  hyperScanFab: {
+    position: 'absolute',
+    bottom: 90, // Higher than tab bar
+    right: 20,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  hyperScanInner: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hyperScanBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#000',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#10b981',
+  },
+  hyperScanBadgeText: {
+    color: '#10b981',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
 });

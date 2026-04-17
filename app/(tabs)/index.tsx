@@ -1,7 +1,33 @@
 import React, { useState } from 'react';
 import { StyleSheet, View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { COLORS } from '@/constants/Colors';
-import { Play, History, Timer as TimerIcon, Dumbbell, ChevronRight, TrendingUp, User, Activity, Sparkles, Droplets, Moon, Footprints, AlertTriangle, Zap, Utensils } from 'lucide-react-native';
+import { 
+  Plus, 
+  Search, 
+  ChevronRight, 
+  Check, 
+  Clock, 
+  Calendar, 
+  Flame, 
+  Layout, 
+  Settings, 
+  User, 
+  Camera,
+  MessageSquare,
+  Play, 
+  History, 
+  Timer as TimerIcon, 
+  Dumbbell, 
+  TrendingUp, 
+  Activity, 
+  Sparkles, 
+  Droplets, 
+  Moon, 
+  Footprints, 
+  AlertTriangle, 
+  Zap, 
+  Utensils 
+} from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useWorkout } from '@/context/WorkoutContext';
 import { NotificationService } from '@/services/NotificationService';
@@ -445,6 +471,25 @@ export default function DashboardScreen() {
           </View>
         </View>
       </View>
+
+      <TouchableOpacity 
+        style={styles.hyperScanFab} 
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          router.push('/modal');
+        }}
+        activeOpacity={0.9}
+      >
+        <LinearGradient
+          colors={['#10b981', '#059669']}
+          style={styles.hyperScanInner}
+        >
+          <Camera size={28} color="#fff" />
+          <View style={styles.hyperScanBadge}>
+            <Text style={styles.hyperScanBadgeText}>AI</Text>
+          </View>
+        </LinearGradient>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -485,9 +530,46 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(110, 89, 255, 0.1)',
     borderRadius: 20,
     padding: 16,
-    marginBottom: 24,
+    marginTop: 8,
     borderWidth: 1,
-    borderColor: 'rgba(110, 89, 255, 0.2)',
+    borderColor: 'rgba(16, 185, 129, 0.2)',
+  },
+  // Hyper Scan FAB
+  hyperScanFab: {
+    position: 'absolute',
+    bottom: 30,
+    right: 20,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  hyperScanInner: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hyperScanBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#000',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#10b981',
+  },
+  hyperScanBadgeText: {
+    color: '#10b981',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   aiHeader: {
     flexDirection: 'row',
