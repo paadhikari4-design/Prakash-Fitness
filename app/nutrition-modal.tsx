@@ -6,7 +6,7 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { COLORS } from '@/constants/Colors';
 import {
-  X, Camera, Utensils, Apple, Flame, Beaker, CheckCircle, Target, Search, RefreshCw, Zap
+  X, Camera, Utensils, Apple, Flame, Beaker, CheckCircle, Target, Search, RefreshCw, Zap, Image as ImageIcon, Upload
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -583,18 +583,24 @@ export default function NutritionModal() {
                 </CameraView>
               </View>
             ) : !imageUri ? (
-              <View style={styles.scannerHero}>
-                <TouchableOpacity style={styles.uploadBtn} onPress={() => {
+              <View style={styles.scannerHeroRow}>
+                <TouchableOpacity style={styles.heroActionCard} onPress={() => {
                   if (permission?.granted) setShowCamera(true);
                   else requestPermission().then(res => { if(res.granted) setShowCamera(true); });
                 }}>
-                  <Camera size={36} color={COLORS.primary} />
-                  <Text style={styles.uploadBtnText}>Scan with Live Camera</Text>
-                  <Text style={styles.uploadBtnSub}>Direct Vision AI analysis</Text>
+                  <View style={[styles.heroIconCircle, { backgroundColor: COLORS.primaryDim }]}>
+                    <Camera size={28} color={COLORS.primary} />
+                  </View>
+                  <Text style={styles.heroActionTitle}>Live Scan</Text>
+                  <Text style={styles.heroActionSub}>Analyze with Camera</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.uploadBtn, { flex: 0.5, paddingVertical: 20 }]} onPress={pickImageToScan}>
-                  <Utensils size={24} color={COLORS.textSecondary} />
-                  <Text style={[styles.uploadBtnText, { fontSize: 13 }]}>Upload from Gallery</Text>
+
+                <TouchableOpacity style={styles.heroActionCard} onPress={pickImageToScan}>
+                  <View style={[styles.heroIconCircle, { backgroundColor: 'rgba(56, 189, 248, 0.1)' }]}>
+                    <ImageIcon size={28} color="#38bdf8" />
+                  </View>
+                  <Text style={styles.heroActionTitle}>Upload Photo</Text>
+                  <Text style={styles.heroActionSub}>Choose from Gallery</Text>
                 </TouchableOpacity>
               </View>
             ) : (
@@ -759,13 +765,17 @@ const styles = StyleSheet.create({
   content: { flex: 1, padding: 20 },
   tabHeader: { color: COLORS.text, fontSize: 20, fontWeight: 'bold', marginBottom: 6 },
   tabSub: { color: COLORS.textSecondary, fontSize: 13, lineHeight: 20, marginBottom: 20 },
-  uploadBtn: {
-    alignItems: 'center', justifyContent: 'center', paddingVertical: 40,
-    borderWidth: 2, borderColor: COLORS.primaryDim, borderStyle: 'dashed', borderRadius: 16,
-    backgroundColor: COLORS.surface, gap: 8,
+  scannerHeroRow: { flexDirection: 'row', gap: 12, marginBottom: 20 },
+  heroActionCard: {
+    flex: 1, backgroundColor: COLORS.surface, borderRadius: 20, padding: 20,
+    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.border,
+    minHeight: 160,
   },
-  uploadBtnText: { color: COLORS.text, fontSize: 16, fontWeight: '600' },
-  uploadBtnSub: { color: COLORS.textSecondary, fontSize: 12 },
+  heroIconCircle: {
+    width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', marginBottom: 12,
+  },
+  heroActionTitle: { color: COLORS.text, fontSize: 15, fontWeight: 'bold' },
+  heroActionSub: { color: COLORS.textSecondary, fontSize: 12, textAlign: 'center', marginTop: 4 },
   imageContainer: {
     width: '100%', height: 280, borderRadius: 16, overflow: 'hidden', position: 'relative',
     borderWidth: 1, borderColor: COLORS.border, marginBottom: 16,

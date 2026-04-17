@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import {
-  StyleSheet, View, Text, ScrollView, TouchableOpacity, Platform
+  StyleSheet, View, Text, ScrollView, TouchableOpacity, Platform, Modal, TextInput, Alert
 } from 'react-native';
 import { COLORS } from '@/constants/Colors';
 import { useWorkout } from '@/context/WorkoutContext';
-import { Trophy, Users, Zap, Flame, Target, Star, Award, ChevronRight, CheckCircle } from 'lucide-react-native';
+import { Trophy, Users, Zap, Flame, Target, Star, Award, ChevronRight, CheckCircle, UserPlus, Search, X } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 
@@ -53,16 +53,25 @@ const CHALLENGES = [
 type LeaderboardMetric = 'workouts' | 'volume' | 'streak';
 
 export default function SocialScreen() {
-  const { history } = useWorkout();
+  const { history, userProfile } = useWorkout();
+  const [activeSocialTab, setActiveSocialTab] = useState<'circle' | 'global'>('circle');
   const [metric, setMetric] = useState<LeaderboardMetric>('workouts');
   const [joinedChallenges, setJoinedChallenges] = useState<string[]>([]);
+  
+  // Friends State (Simulated)
+  const [friends, setFriends] = useState<any[]>([]);
+  const [showAddFriend, setShowAddFriend] = useState(false);
+  const [friendIdInput, setFriendIdInput] = useState('');
+  const [isAdding, setIsAdding] = useState(false);
 
   // Merge real data for "You" row
   const myWorkouts = history.length;
   const myVolume = history.reduce((sum, h) => sum + (parseInt(h.volume.replace(/[^0-9]/g, '')) || 0), 0);
   const myStreak = Math.min(Math.floor(myWorkouts / 1.5) + 1, 35);
 
-  const leaderboard = MOCK_FRIENDS.map(f =>
+  const activeLeaderboardSource = activeSocialTab === 'circle' ? [ ...friends, { rank: 0, name: userProfile?.displayName || 'You', workouts: 0, volume: '0k', streak: 0, you: true } ] : MOCK_FRIENDS;
+
+  const leaderboard = activeLeaderboardSource.map(f =>
     f.you
       ? { ...f, workouts: myWorkouts, volume: `${(myVolume / 1000).toFixed(0)}k`, streak: myStreak }
       : f
@@ -74,10 +83,33 @@ export default function SocialScreen() {
 
   const rankColors = ['#f59e0b', '#a1a1aa', '#cd7c39'];
 
+  const handleAddFriend = () => {
+    if (!friendIdInput.trim()) return;
+    setIsAdding(true);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    
+    // Simulate finding a friend after 1s
+    setTimeout(() => {
+      const newFriend = {
+        rank: 0,
+        name: friendIdInput.length > 5 ? friendIdInput.substring(0, 8) : 'Fitness Hero',
+        workouts: Math.floor(Math.random() * 20) + 10,
+        volume: `${Math.floor(Math.random() * 50) + 50}k`,
+        streak: Math.floor(Math.random() * 7) + 3,
+        you: false
+      };
+      setFriends([...friends, newFriend]);
+      setIsAdding(false);
+      setShowAddFriend(false);
+      setFriendIdInput('');
+      Alert.alert('Friend Added! 🤝', `${newFriend.name} is now in your competition circle.`);
+    }, 1200);
+  };
+
   const toggleJoin = (id: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setJoinedChallenges(prev =>
-      prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]
+    setJoinedChallenges((prev: string[]) =>
+      prev.includes(id) ? prev.filter((c: string) => c !== id) : [...prev, id]
     );
   };
 
@@ -85,13 +117,38 @@ export default function SocialScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
 
       {/* Header */}
+      <View style={styles.topActions}>
+        <TouchableOpacity style={styles.addFriendBtn} onPress={() => setShowAddFriend(true)}>
+          <UserPlus size={18} color="#fff" />
+          <Text style={styles.addFriendText}>Add Friends</Text>
+        </TouchableOpacity>
+      </View>
+
       <LinearGradient colors={['rgba(139,92,246,0.2)', 'transparent']} style={styles.heroBanner}>
         <Trophy size={36} color="#f59e0b" />
         <View style={{ flex: 1, marginLeft: 14 }}>
           <Text style={styles.heroTitle}>Competition Mode</Text>
-          <Text style={styles.heroSub}>Compete with friends. Win badges. Stay consistent.</Text>
+          <Text style={styles.heroSub}>{activeSocialTab === 'circle' ? 'You vs. Your Friends' : 'Global Athlete Leaderboard'}</Text>
         </View>
       </LinearGradient>
+
+      {/* Tab Switcher */}
+      <View style={styles.tabRow}>
+        <TouchableOpacity 
+          style={[styles.socialTab, activeSocialTab === 'circle' && styles.socialTabActive]} 
+          onPress={() => setActiveSocialTab('circle')}
+        >
+          <Users size={16} color={activeSocialTab === 'circle' ? COLORS.primary : COLORS.textSecondary} />
+          <Text style={[styles.socialTabText, activeSocialTab === 'circle' && styles.socialTabTextActive]}>My Circle</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.socialTab, activeSocialTab === 'global' && styles.socialTabActive]} 
+          onPress={() => setActiveSocialTab('global')}
+        >
+          <Target size={16} color={activeSocialTab === 'global' ? COLORS.primary : COLORS.textSecondary} />
+          <Text style={[styles.socialTabText, activeSocialTab === 'global' && styles.socialTabTextActive]}>Global</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Leaderboard */}
       <Text style={styles.sectionTitle}>🏆 Leaderboard</Text>
@@ -110,35 +167,79 @@ export default function SocialScreen() {
       </View>
 
       <View style={styles.leaderboardCard}>
-        {leaderboard.map((friend, idx) => (
-          <View
-            key={friend.name}
-            style={[
-              styles.leaderRow,
-              friend.you && styles.leaderRowYou,
-              idx < leaderboard.length - 1 && styles.leaderRowBorder
-            ]}
-          >
-            <View style={styles.rankBadge}>
-              {friend.rank <= 3 ? (
-                <Star size={16} color={rankColors[friend.rank - 1]} fill={rankColors[friend.rank - 1]} />
-              ) : (
-                <Text style={styles.rankNum}>{friend.rank}</Text>
-              )}
-            </View>
-            <Text style={[styles.friendName, friend.you && { color: COLORS.primary, fontWeight: '800' }]}>
-              {friend.name}{friend.you ? ' (You)' : ''}
-            </Text>
-            <View style={styles.friendStats}>
-              <Text style={styles.friendStatVal}>
-                {metric === 'workouts' ? `${friend.workouts} wkts` :
-                  metric === 'volume' ? friend.volume :
-                    `${friend.streak} days`}
+        {leaderboard.length > 1 || activeSocialTab === 'global' ? (
+          leaderboard.map((friend, idx) => (
+            <View
+              key={friend.name + friend.rank}
+              style={[
+                styles.leaderRow,
+                friend.you && styles.leaderRowYou,
+                idx < leaderboard.length - 1 && styles.leaderRowBorder
+              ]}
+            >
+              <View style={styles.rankBadge}>
+                {friend.rank <= 3 ? (
+                  <Star size={16} color={rankColors[friend.rank - 1]} fill={rankColors[friend.rank - 1]} />
+                ) : (
+                  <Text style={styles.rankNum}>{friend.rank}</Text>
+                )}
+              </View>
+              <Text style={[styles.friendName, friend.you && { color: COLORS.primary, fontWeight: '800' }]}>
+                {friend.name}{friend.you ? ' (You)' : ''}
               </Text>
+              <View style={styles.friendStats}>
+                <Text style={styles.friendStatVal}>
+                  {metric === 'workouts' ? `${friend.workouts} wkts` :
+                    metric === 'volume' ? friend.volume :
+                      `${friend.streak} days`}
+                </Text>
+              </View>
             </View>
+          ))
+        ) : (
+          <View style={styles.emptyCircle}>
+            <Users size={48} color={COLORS.border} />
+            <Text style={styles.emptyCircleTitle}>Your Circle is Empty</Text>
+            <Text style={styles.emptyCircleSub}>Add friends to start a competition and see how you stack up!</Text>
+            <TouchableOpacity style={styles.emptyAddBtn} onPress={() => setShowAddFriend(true)}>
+              <Text style={styles.emptyAddBtnText}>Add First Friend</Text>
+            </TouchableOpacity>
           </View>
-        ))}
+        )}
       </View>
+
+      {/* Add Friend Modal */}
+      <Modal visible={showAddFriend} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Add to My Circle</Text>
+              <TouchableOpacity onPress={() => setShowAddFriend(false)}>
+                <X size={24} color={COLORS.text} />
+              </TouchableOpacity>
+            </View>
+            
+            <Text style={styles.modalSub}>Enter your friend's Unique Athlete ID or Username to compete.</Text>
+            
+            <TextInput
+              style={styles.inviteInput}
+              placeholder="e.g. AlexTrainer99"
+              placeholderTextColor={COLORS.textSecondary}
+              value={friendIdInput}
+              onChangeText={setFriendIdInput}
+              autoFocus
+            />
+
+            <TouchableOpacity 
+              style={[styles.confirmAddBtn, !friendIdInput.trim() && { opacity: 0.5 }]} 
+              onPress={handleAddFriend}
+              disabled={isAdding || !friendIdInput.trim()}
+            >
+              <Text style={styles.confirmAddBtnText}>{isAdding ? 'Searching...' : 'Send Competition Invite'}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Group Challenges */}
       <Text style={[styles.sectionTitle, { marginTop: 28 }]}>⚡ Group Challenges</Text>
@@ -204,12 +305,26 @@ export default function SocialScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   content: { padding: 20 },
+  topActions: { flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 16 },
+  addFriendBtn: { 
+    flexDirection: 'row', alignItems: 'center', gap: 8, 
+    backgroundColor: COLORS.primary, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12 
+  },
+  addFriendText: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
   heroBanner: {
     flexDirection: 'row', alignItems: 'center', padding: 20,
-    borderRadius: 20, marginBottom: 28, borderWidth: 1, borderColor: COLORS.border,
+    borderRadius: 20, marginBottom: 20, borderWidth: 1, borderColor: COLORS.border,
   },
   heroTitle: { color: COLORS.text, fontSize: 20, fontWeight: 'bold' },
   heroSub: { color: COLORS.textSecondary, fontSize: 13, marginTop: 2 },
+  tabRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
+  socialTab: { 
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    paddingVertical: 12, backgroundColor: COLORS.surface, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border 
+  },
+  socialTabActive: { backgroundColor: COLORS.primaryDim, borderColor: COLORS.primary },
+  socialTabText: { color: COLORS.textSecondary, fontSize: 14, fontWeight: '600' },
+  socialTabTextActive: { color: COLORS.primary },
   sectionTitle: { color: COLORS.text, fontSize: 18, fontWeight: 'bold', marginBottom: 14 },
   metricRow: { flexDirection: 'row', gap: 8, marginBottom: 14 },
   metricPill: {
@@ -221,8 +336,13 @@ const styles = StyleSheet.create({
   metricTextActive: { color: COLORS.primary },
   leaderboardCard: {
     backgroundColor: COLORS.surface, borderRadius: 16,
-    borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden',
+    borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden', minHeight: 120,
   },
+  emptyCircle: { alignItems: 'center', padding: 32, gap: 12 },
+  emptyCircleTitle: { color: COLORS.text, fontSize: 18, fontWeight: 'bold' },
+  emptyCircleSub: { color: COLORS.textSecondary, fontSize: 14, textAlign: 'center', lineHeight: 20 },
+  emptyAddBtn: { backgroundColor: COLORS.primaryDim, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12, marginTop: 4 },
+  emptyAddBtnText: { color: COLORS.primary, fontWeight: 'bold' },
   leaderRow: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 16, paddingVertical: 14, gap: 12,
@@ -234,6 +354,14 @@ const styles = StyleSheet.create({
   friendName: { flex: 1, color: COLORS.text, fontSize: 15, fontWeight: '600' },
   friendStats: {},
   friendStatVal: { color: COLORS.primary, fontSize: 14, fontWeight: '700' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: COLORS.background, borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, paddingBottom: 40 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  modalTitle: { color: COLORS.text, fontSize: 22, fontWeight: 'bold' },
+  modalSub: { color: COLORS.textSecondary, fontSize: 14, marginBottom: 20, lineHeight: 20 },
+  inviteInput: { backgroundColor: COLORS.surface, borderRadius: 16, padding: 16, color: COLORS.text, fontSize: 16, borderWidth: 1, borderColor: COLORS.border, marginBottom: 20 },
+  confirmAddBtn: { backgroundColor: COLORS.primary, borderRadius: 16, paddingVertical: 16, alignItems: 'center' },
+  confirmAddBtnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   challengeCard: {
     backgroundColor: COLORS.surface, borderRadius: 16, padding: 16,
     borderWidth: 1, borderColor: COLORS.border, marginBottom: 12,
