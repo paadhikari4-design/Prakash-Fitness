@@ -11,7 +11,7 @@ export default function NutritionModal() {
   const [waterCups, setWaterCups] = useState(5);
   const calorieGoal = 2500;
   const caloriesConsumed = 1840;
-  
+
   const macros = [
     { label: 'Protein', value: 145, goal: 180, color: '#ef4444', icon: Beef },
     { label: 'Carbs', value: 210, goal: 280, color: '#f59e0b', icon: Wheat },
@@ -21,7 +21,7 @@ export default function NutritionModal() {
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      
+
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {/* Daily Summary Header */}
         <LinearGradient
@@ -99,15 +99,15 @@ export default function NutritionModal() {
             </View>
           </View>
           <View style={styles.waterControls}>
-            <TouchableOpacity 
-              style={styles.waterBtn} 
+            <TouchableOpacity
+              style={styles.waterBtn}
               onPress={() => setWaterCups(Math.max(0, waterCups - 1))}
             >
               <Text style={styles.waterBtnText}>-</Text>
             </TouchableOpacity>
             <Text style={styles.waterCount}>{waterCups}</Text>
-            <TouchableOpacity 
-              style={[styles.waterBtn, styles.waterBtnAdd]} 
+            <TouchableOpacity
+              style={[styles.waterBtn, styles.waterBtnAdd]}
               onPress={() => setWaterCups(waterCups + 1)}
             >
               <Plus size={20} color="#fff" />
