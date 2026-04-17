@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet, View, Text, ScrollView, TouchableOpacity,
   Image, Platform, ActivityIndicator, Animated, TextInput, Alert
@@ -6,10 +6,11 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { COLORS } from '@/constants/Colors';
 import {
-  X, Camera, Utensils, Apple, Flame, Beaker, CheckCircle, Target, Search, RefreshCw
+  X, Camera, Utensils, Apple, Flame, Beaker, CheckCircle, Target, Search, RefreshCw, Zap
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 
 // ─── Comprehensive Food Database ───────────────────────────────────────// ─ Comprehensive Food Database ────────────────────────────────────────────
 // Each entry has keywords + macros + micronutrients + health score
@@ -161,6 +162,22 @@ export default function NutritionModal() {
   const [goal, setGoal] = useState<'Fat Loss' | 'Muscle Gain' | 'Maintenance'>('Fat Loss');
   const [generatedPlan, setGeneratedPlan] = useState<any | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [scanningPing, setScanningPing] = useState('Initializing Sensors...');
+
+  // Camera & Plate State
+  const [permission, requestPermission] = useCameraPermissions();
+  const [showCamera, setShowCamera] = useState(false);
+  const [mealPlate, setMealPlate] = useState<ScanResult[]>([]);
+  const cameraRef = React.useRef<any>(null);
+
+  useEffect(() => {
+    if (isScanning) {
+      const pings = ['Calibrating RGB...', 'Spectral Density...', 'Macros...', 'V2 Hyper-Vision Active...'];
+      let i = 0;
+      const interval = setInterval(() => { setScanningPing(pings[i % pings.length]); i++; }, 400);
+      return () => clearInterval(interval);
+    }
+  }, [isScanning]);
 
   const translateY = scanAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 270] });
 
@@ -178,6 +195,25 @@ export default function NutritionModal() {
       setScanResult(null);
       runScan(uri);
     }
+  };
+
+  const takePicture = async () => {
+    if (!cameraRef.current) return;
+    try {
+      const photo = await cameraRef.current.takePictureAsync({ quality: 0.5 });
+      setImageUri(photo.uri);
+      setShowCamera(false);
+      runScan(photo.uri);
+    } catch (e) {
+      Alert.alert('Error', 'Could not capture photo');
+    }
+  };
+
+  const addToPlate = (item: ScanResult) => {
+    setMealPlate([...mealPlate, item]);
+    Alert.alert('🥘 Added to Plate', `${item.name} added to your food combination.`);
+    setImageUri(null); setScanResult(null); setSearchResult(null);
+    setSearchQuery(''); setHasSearched(false);
   };
 
   const runScan = (uri: string) => {
@@ -299,6 +335,10 @@ export default function NutritionModal() {
       setSearchQuery(''); setHasSearched(false);
     };
 
+    const handleAddToPlate = () => {
+      addToPlate(edited);
+    };
+
     return (
     <View style={styles.resultCard}>
       <View style={styles.resultHeader}>
@@ -313,8 +353,8 @@ export default function NutritionModal() {
           <Text style={styles.foodName}>{result.name}</Text>
           <View style={styles.portionRow}>
             {(['Small', 'Standard', 'Athlete'] as const).map(p => (
-              <TouchableOpacity 
-                key={p} 
+              <TouchableOpacity
+                key={p}
                 onPress={() => setPortion(p)}
                 style={[styles.portionBtn, portion === p && styles.portionBtnActive]}
               >
@@ -331,19 +371,120 @@ export default function NutritionModal() {
         </View>
       </View>
 
-      <View style={styles.macroGrid}>
-      </View>
+        <View style={styles.macroGrid}>
+          {[
+            { icon: <Flame size={14} color="#ff6b6b" />, label: 'Kcals', val: scaleValue(result.calories, scale) },
+            { icon: <Beaker size={14} color="#10b981" />, label: 'Protein', val: scaleValue(result.protein, scale) + 'g' },
+            { icon: <Beaker size={14} color="#f59e0b" />, label: 'Carbs', val: scaleValue(result.carbs, scale) + 'g' },
+          ].map((m, i) => (
+            <View key={i} style={styles.macroCard}>
+              {m.icon}
+              <Text style={styles.macroValue}>{m.val}</Text>
+              <Text style={styles.macroLabel}>{m.label}</Text>
+            </View>
+          ))}
+        </View>
+
+        <View style={styles.insightSection}>
+          <Text style={styles.insightTitle}>Hyper-Vision Readiness Impact</Text>
+          <View style={styles.insightRow}>
+            <View style={styles.readinessPill}>
+               <Zap size={14} color="#f59e0b" />
+               <Text style={styles.readinessLabel}>Impact: </Text>
+               <Text style={[styles.readinessVal, {color: result.healthScore > 70 ? '#10b981' : '#f59e0b'}]}>
+                 {result.healthScore > 70 ? '+12% Energy' : '+2% Energy'}
+               </Text>
+            </View>
+          </View>
+          <View style={styles.microGrid}>
+            <View style={styles.microItem}><Text style={styles.microLabel}>Iron</Text><Text style={styles.microVal}>{( (result.iron||0) * scale).toFixed(1)}mg</Text></View>
+            <View style={styles.microItem}><Text style={styles.microLabel}>Mag</Text><Text style={styles.microVal}>{scaleValue(result.magnesium||0, scale)}mg</Text></View>
+            <View style={styles.microItem}><Text style={styles.microLabel}>Vit-C</Text><Text style={styles.microVal}>{scaleValue(result.vitaminC||0, scale)}mg</Text></View>
+          </View>
+        </View>
+
+        <View style={{ flexDirection: 'row', gap: 10 }}>
+          <TouchableOpacity style={[styles.logFullBtn, { flex: 1.5 }]} onPress={handleSaveLog}>
+            <CheckCircle size={20} color="#fff" />
+            <Text style={styles.logFullText}>Log Single Item</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.logFullBtn, { flex: 1, backgroundColor: COLORS.surface, borderWidth: 2, borderColor: COLORS.primary }]} onPress={handleAddToPlate}>
+            <Utensils size={20} color={COLORS.primary} />
+            <Text style={[styles.logFullText, { color: COLORS.primary }]}>Add to Plate</Text>
+          </TouchableOpacity>
+        </View>
 
       <TouchableOpacity style={styles.rescanInlineBtn} onPress={() => {
         setImageUri(null); setScanResult(null); setSearchResult(null);
         setSearchQuery(''); setHasSearched(false);
       }}>
         <RefreshCw size={14} color={COLORS.textSecondary} />
-        <Text style={styles.rescanInlineText}>Scan Another Meal</Text>
+        <Text style={styles.rescanInlineText}>Scan Another Item</Text>
       </TouchableOpacity>
     </View>
-  );
-};
+    );
+  };
+
+  const MealPlateSummary = () => {
+    if (mealPlate.length === 0) return null;
+
+    const totals = mealPlate.reduce((acc, item) => ({
+      calories: acc.calories + (item.calories * (item.portionScale || 1)),
+      protein: acc.protein + (item.protein * (item.portionScale || 1)),
+      carbs: acc.carbs + (item.carbs * (item.portionScale || 1)),
+      fat: acc.fat + (item.fat * (item.portionScale || 1)),
+    }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
+
+    const handleLogCombination = () => {
+      Alert.alert('✅ Meal Combination Logged', `Full meal of ${mealPlate.length} items added to history.`);
+      setMealPlate([]);
+      router.back();
+    };
+
+    return (
+      <View style={styles.plateSummary}>
+        <View style={styles.plateHeader}>
+          <Utensils size={20} color={COLORS.primary} />
+          <Text style={styles.plateTitle}>Active Meal Combination</Text>
+          <TouchableOpacity onPress={() => setMealPlate([])}>
+            <X size={18} color={COLORS.textSecondary} />
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.plateGallery}>
+          {mealPlate.map((item, idx) => (
+            <View key={idx} style={styles.plateItemPill}>
+              <Text style={styles.plateItemText}>{item.name}</Text>
+            </View>
+          ))}
+        </ScrollView>
+
+        <View style={styles.plateMacroRow}>
+          <View style={styles.plateMacroCol}>
+            <Text style={styles.plateMacroVal}>{Math.round(totals.calories)}</Text>
+            <Text style={styles.plateMacroLabel}>Kcals</Text>
+          </View>
+          <View style={styles.plateMacroCol}>
+            <Text style={styles.plateMacroVal}>{Math.round(totals.protein)}g</Text>
+            <Text style={styles.plateMacroLabel}>Protein</Text>
+          </View>
+          <View style={styles.plateMacroCol}>
+            <Text style={styles.plateMacroVal}>{Math.round(totals.carbs)}g</Text>
+            <Text style={styles.plateMacroLabel}>Carbs</Text>
+          </View>
+          <View style={styles.plateMacroCol}>
+            <Text style={styles.plateMacroVal}>{Math.round(totals.fat)}g</Text>
+            <Text style={styles.plateMacroLabel}>Fat</Text>
+          </View>
+        </View>
+
+        <TouchableOpacity style={styles.logPlateBtn} onPress={handleLogCombination}>
+          <CheckCircle size={20} color="#fff" />
+          <Text style={styles.logPlateText}>Log Full Combination</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -382,16 +523,52 @@ export default function NutritionModal() {
           <View>
             <Text style={styles.tabHeader}>Nutrition Vision AI</Text>
             <Text style={styles.tabSub}>
-              Upload a food photo — the AI identifies it from the filename. For precise results, type the food name below.
+              Scan food with your camera or upload a photo. Use "Add to Plate" to combine multiple items into one meal.
             </Text>
 
+            {/* Meal Combinator Summary */}
+            <MealPlateSummary />
+
             {/* Image area */}
-            {!imageUri ? (
-              <TouchableOpacity style={styles.uploadBtn} onPress={pickImageToScan}>
-                <Camera size={36} color={COLORS.primary} />
-                <Text style={styles.uploadBtnText}>Upload Meal Photo</Text>
-                <Text style={styles.uploadBtnSub}>JPG, PNG from camera roll</Text>
-              </TouchableOpacity>
+            {showCamera && permission?.granted ? (
+              <View style={styles.cameraContainer}>
+                <CameraView
+                  style={styles.camera}
+                  ref={cameraRef}
+                >
+                  <View style={styles.hudOverlay}>
+                    <View style={styles.targetBox} />
+                    <View style={styles.hudMarkerTopLeft} />
+                    <View style={styles.hudMarkerTopRight} />
+                    <View style={styles.hudMarkerBottomLeft} />
+                    <View style={styles.hudMarkerBottomRight} />
+                  </View>
+                  <View style={styles.cameraControls}>
+                    <TouchableOpacity style={styles.cameraCloseBtn} onPress={() => setShowCamera(false)}>
+                      <X size={24} color="#fff" />
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.snapBtn} onPress={takePicture}>
+                      <View style={styles.snapBtnInner} />
+                    </TouchableOpacity>
+                    <View style={{ width: 40 }} />
+                  </View>
+                </CameraView>
+              </View>
+            ) : !imageUri ? (
+              <View style={styles.scannerHero}>
+                <TouchableOpacity style={styles.uploadBtn} onPress={() => {
+                  if (permission?.granted) setShowCamera(true);
+                  else requestPermission().then(res => { if(res.granted) setShowCamera(true); });
+                }}>
+                  <Camera size={36} color={COLORS.primary} />
+                  <Text style={styles.uploadBtnText}>Scan with Live Camera</Text>
+                  <Text style={styles.uploadBtnSub}>Direct Vision AI analysis</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.uploadBtn, { flex: 0.5, paddingVertical: 20 }]} onPress={pickImageToScan}>
+                  <Utensils size={24} color={COLORS.textSecondary} />
+                  <Text style={[styles.uploadBtnText, { fontSize: 13 }]}>Upload from Gallery</Text>
+                </TouchableOpacity>
+              </View>
             ) : (
               <View style={styles.imageContainer}>
                 <Image source={{ uri: imageUri || '' }} style={styles.scannedImage} />
@@ -400,7 +577,10 @@ export default function NutritionModal() {
                     <Animated.View style={[styles.scanLine, { transform: [{ translateY }] }]} />
                     <View style={styles.scanTextContainer}>
                       <ActivityIndicator size="small" color={COLORS.primary} />
-                      <Text style={styles.scanText}>Hyper-Vision Scanning...</Text>
+                      <View>
+                        <Text style={styles.scanText}>Hyper-Vision Scanning...</Text>
+                        <Text style={styles.scanPingText}>{scanningPing}</Text>
+                      </View>
                     </View>
                   </View>
                 ) : (
@@ -626,12 +806,17 @@ const styles = StyleSheet.create({
   },
   macroValue: { fontSize: 15, fontWeight: 'bold' },
   macroLabel: { color: COLORS.textSecondary, fontSize: 9 },
+  scanPingText: { color: COLORS.primary, fontSize: 10, marginTop: 2 },
   // Insights
   insightSection: { 
     backgroundColor: COLORS.surfaceLight, borderRadius: 12, padding: 12, marginBottom: 16,
     borderWidth: 1, borderStyle: 'dashed', borderColor: COLORS.border 
   },
   insightTitle: { color: COLORS.primary, fontSize: 11, fontWeight: 'bold', marginBottom: 8, textTransform: 'uppercase' },
+  insightRow: { marginBottom: 10 },
+  readinessPill: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(245, 158, 11, 0.1)', paddingVertical: 4, paddingHorizontal: 8, borderRadius: 8 },
+  readinessLabel: { color: COLORS.textSecondary, fontSize: 9 },
+  readinessVal: { fontSize: 10, fontWeight: 'bold' },
   microGrid: { flexDirection: 'row', justifyContent: 'space-between' },
   microItem: { alignItems: 'center' },
   microLabel: { color: COLORS.textSecondary, fontSize: 9 },
@@ -645,7 +830,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: COLORS.primary, paddingVertical: 14, borderRadius: 12 
   },
-  logFullText: { color: COLORS.background, fontSize: 15, fontWeight: 'bold' },
+  logFullText: { color: '#fff', fontSize: 15, fontWeight: 'bold' },
   rescanInlineBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 16 },
   rescanInlineText: { color: COLORS.textSecondary, fontSize: 12, fontWeight: '600' },
   rescanBtn: {
@@ -690,4 +875,37 @@ const styles = StyleSheet.create({
   },
   mealMacroVal: { color: COLORS.text, fontSize: 13, fontWeight: 'bold' },
   mealMacroLabel: { color: COLORS.textSecondary, fontSize: 10 },
+  // Camera
+  cameraContainer: { width: '100%', height: 400, borderRadius: 20, overflow: 'hidden', marginBottom: 16 },
+  camera: { flex: 1 },
+  cameraControls: {
+    position: 'absolute', bottom: 30, left: 0, right: 0,
+    flexDirection: 'row', justifyContent: 'space-around', alignItems: 'center', paddingHorizontal: 30,
+  },
+  cameraCloseBtn: { padding: 10, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 20 },
+  snapBtn: { width: 70, height: 70, borderRadius: 35, borderWidth: 4, borderColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+  snapBtnInner: { width: 54, height: 54, borderRadius: 27, backgroundColor: '#fff' },
+  scannerHero: { gap: 12 },
+  // Plate Summary
+  plateSummary: { 
+    backgroundColor: COLORS.surface, borderRadius: 16, padding: 16, 
+    marginBottom: 20, borderWidth: 2, borderColor: COLORS.primary 
+  },
+  plateHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  plateTitle: { color: COLORS.text, fontWeight: 'bold', fontSize: 15 },
+  plateGallery: { flexDirection: 'row', marginBottom: 14 },
+  plateItemPill: { 
+    backgroundColor: COLORS.surfaceLight, paddingHorizontal: 12, paddingVertical: 6, 
+    borderRadius: 20, marginRight: 8, borderWidth: 1, borderColor: COLORS.border 
+  },
+  plateItemText: { color: COLORS.text, fontSize: 11, fontWeight: '600' },
+  plateMacroRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
+  plateMacroCol: { alignItems: 'center' },
+  plateMacroVal: { color: COLORS.primary, fontSize: 18, fontWeight: 'bold' },
+  plateMacroLabel: { color: COLORS.textSecondary, fontSize: 9 },
+  logPlateBtn: { 
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: COLORS.primary, paddingVertical: 12, borderRadius: 12 
+  },
+  logPlateText: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
 });

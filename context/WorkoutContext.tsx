@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { auth, db } from '@/services/firebase';
 import { onAuthStateChanged, signInAnonymously } from 'firebase/auth';
+import { NotificationService } from '@/services/NotificationService';
 import { 
   collection, query, onSnapshot, addDoc, 
   serverTimestamp, orderBy, doc, setDoc, updateDoc 
@@ -122,6 +123,10 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         signInAnonymously(auth);
       }
     });
+
+    // Initialize Service Workers & Messaging
+    NotificationService.registerServiceWorkers();
+    
     return unsubscribe;
   }, []);
 
@@ -275,6 +280,12 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       });
       setExercises([]);
       setWorkoutTime(0);
+
+      // Superpower: Push Notification on Completion
+      NotificationService.sendLocalNotification(
+        "Workout Logged! 🔥",
+        `Great job on "${session.title}". Vol: ${session.volume}`
+      );
     } catch (e) {
       console.error("Error adding workout: ", e);
     }

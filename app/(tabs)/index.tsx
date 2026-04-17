@@ -4,7 +4,9 @@ import { COLORS } from '@/constants/Colors';
 import { Play, History, Timer as TimerIcon, Dumbbell, ChevronRight, TrendingUp, User, Activity, Sparkles, Droplets, Moon, Footprints, AlertTriangle, Zap, Utensils } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useWorkout } from '@/context/WorkoutContext';
+import { NotificationService } from '@/services/NotificationService';
 import { EXERCISE_DATA } from './library';
+import { Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -18,6 +20,39 @@ export default function DashboardScreen() {
   const [waterGlasses, setWaterGlasses] = useState(0);
   const [sleepHours, setSleepHours] = useState(0);
   const [steps, setSteps] = useState(0);
+  const [isOffline, setIsOffline] = useState(false);
+  const [notificationStatus, setNotificationStatus] = useState<string | null>(null);
+
+  // Connectivity & Notification Effect
+  React.useEffect(() => {
+    if (Platform.OS === 'web') {
+      const handleOnline = () => setIsOffline(false);
+      const handleOffline = () => setIsOffline(true);
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
+      setIsOffline(!window.navigator.onLine);
+      
+      setNotificationStatus(Notification.permission);
+
+      return () => {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+      };
+    }
+  }, []);
+
+  const enableNotifications = async () => {
+    const token = await NotificationService.requestPermission();
+    if (token) {
+      setNotificationStatus('granted');
+      NotificationService.sendLocalNotification(
+        "Notifications Enabled! 🔥",
+        "We'll ping you for streaks and workout reminders."
+      );
+    } else {
+      setNotificationStatus('denied');
+    }
+  };
 
   // ── Overtraining / Health Risk Detection ─────────────────────────
   const detectOvertraining = () => {
@@ -115,6 +150,20 @@ export default function DashboardScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      {isOffline && (
+        <View style={styles.offlineBanner}>
+          <Zap size={16} color="#000" />
+          <Text style={styles.offlineBannerText}>Offline Mode • Workouts will sync when back online</Text>
+        </View>
+      )}
+
+      {notificationStatus === 'default' && (
+        <TouchableOpacity style={styles.notifPrompt} onPress={enableNotifications}>
+          <Sparkles size={16} color="#fff" />
+          <Text style={styles.notifPromptText}>Enable Push Notifications for 3-Day Streaks 🔥</Text>
+        </TouchableOpacity>
+      )}
+
       <View style={styles.brandRow}>
         <Activity size={20} color={COLORS.primary} strokeWidth={3} />
         <Text style={styles.brandName}>PRAKASH FITNESS</Text>
@@ -799,4 +848,16 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: COLORS.border,
   },
   habitTipText: { color: COLORS.textSecondary, fontSize: 13, lineHeight: 20 },
+  // Offline & Notif UI
+  offlineBanner: {
+    backgroundColor: COLORS.primary, paddingVertical: 8, paddingHorizontal: 12,
+    borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16,
+  },
+  offlineBannerText: { color: '#000', fontSize: 12, fontWeight: 'bold' },
+  notifPrompt: {
+    backgroundColor: '#8b5cf6', paddingVertical: 10, paddingHorizontal: 16,
+    borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)',
+  },
+  notifPromptText: { color: '#fff', fontSize: 13, fontWeight: 'bold' },
 });
