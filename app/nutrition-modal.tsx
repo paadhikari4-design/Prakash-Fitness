@@ -11,8 +11,8 @@ import {
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 
-// ─── Comprehensive Food Database ────────────────────────────────────────────
-// Each entry has keywords (matched against filename / manual input) + macros
+// ─── Comprehensive Food Database ───────────────────────────────────────// ─ Comprehensive Food Database ────────────────────────────────────────────
+// Each entry has keywords + macros + micronutrients + health score
 const FOOD_DB: {
   keywords: string[];
   name: string;
@@ -22,60 +22,69 @@ const FOOD_DB: {
   fat: number;
   fiber: number;
   sugar: number;
+  vitaminC?: number; // mg
+  vitaminD?: number; // mcg
+  iron?: number;    // mg
+  magnesium?: number; // mg
+  healthScore: number; // 1-100
+  pros: string[];
+  cons: string[];
 }[] = [
-  { keywords: ['chicken','grilled chicken','breast','fillet'], name: 'Grilled Chicken Breast (200g)', calories: 330, protein: 62, carbs: 0, fat: 7, fiber: 0, sugar: 0 },
-  { keywords: ['salad','green salad','mixed salad','caesar'], name: 'Mixed Green Salad', calories: 120, protein: 6, carbs: 14, fat: 5, fiber: 4, sugar: 3 },
-  { keywords: ['chicken salad'], name: 'Grilled Chicken Salad', calories: 340, protein: 42, carbs: 12, fat: 15, fiber: 3, sugar: 2 },
-  { keywords: ['oatmeal','oats','porridge'], name: 'Oatmeal with Berries (300g)', calories: 280, protein: 8, carbs: 45, fat: 4, fiber: 6, sugar: 8 },
-  { keywords: ['steak','beef steak','ribeye','sirloin'], name: 'Beef Steak (200g)', calories: 460, protein: 52, carbs: 0, fat: 28, fiber: 0, sugar: 0 },
-  { keywords: ['sweet potato','sweet potatoes'], name: 'Sweet Potato (200g)', calories: 172, protein: 3, carbs: 40, fat: 0, fiber: 5, sugar: 8 },
-  { keywords: ['steak potato','steak sweet'], name: 'Steak & Sweet Potatoes', calories: 620, protein: 55, carbs: 40, fat: 25, fiber: 5, sugar: 7 },
-  { keywords: ['rice','white rice'], name: 'White Rice (200g cooked)', calories: 260, protein: 5, carbs: 55, fat: 1, fiber: 1, sugar: 0 },
-  { keywords: ['brown rice'], name: 'Brown Rice (200g cooked)', calories: 218, protein: 5, carbs: 44, fat: 2, fiber: 4, sugar: 0 },
-  { keywords: ['egg','eggs','scramble','omelette','omelet'], name: 'Whole Eggs x3 (scrambled)', calories: 228, protein: 18, carbs: 2, fat: 16, fiber: 0, sugar: 1 },
-  { keywords: ['egg white'], name: 'Egg Whites x4', calories: 70, protein: 15, carbs: 1, fat: 0, fiber: 0, sugar: 0 },
-  { keywords: ['salmon','grilled salmon','baked salmon'], name: 'Grilled Salmon (180g)', calories: 360, protein: 40, carbs: 0, fat: 21, fiber: 0, sugar: 0 },
-  { keywords: ['tuna','tuna can'], name: 'Canned Tuna in Water (150g)', calories: 158, protein: 35, carbs: 0, fat: 1, fiber: 0, sugar: 0 },
-  { keywords: ['pasta','spaghetti','penne','noodle'], name: 'Pasta (200g cooked)', calories: 310, protein: 11, carbs: 62, fat: 2, fiber: 3, sugar: 2 },
-  { keywords: ['pizza'], name: 'Pizza Slice (1 medium)', calories: 285, protein: 12, carbs: 36, fat: 10, fiber: 2, sugar: 4 },
-  { keywords: ['burger','hamburger','cheeseburger'], name: 'Cheeseburger', calories: 540, protein: 28, carbs: 44, fat: 28, fiber: 2, sugar: 8 },
-  { keywords: ['sandwich','sub','wrap'], name: 'Turkey Sandwich', calories: 350, protein: 24, carbs: 38, fat: 9, fiber: 3, sugar: 5 },
-  { keywords: ['banana'], name: 'Banana (medium)', calories: 105, protein: 1, carbs: 27, fat: 0, fiber: 3, sugar: 14 },
-  { keywords: ['apple'], name: 'Apple (medium)', calories: 95, protein: 0, carbs: 25, fat: 0, fiber: 4, sugar: 19 },
-  { keywords: ['yogurt','greek yogurt','yoghurt'], name: 'Greek Yogurt (200g)', calories: 130, protein: 17, carbs: 9, fat: 0, fiber: 0, sugar: 7 },
-  { keywords: ['protein shake','shake','smoothie'], name: 'Protein Shake', calories: 160, protein: 30, carbs: 5, fat: 2, fiber: 0, sugar: 3 },
-  { keywords: ['protein bar','bar'], name: 'Protein Bar', calories: 220, protein: 20, carbs: 24, fat: 8, fiber: 2, sugar: 10 },
-  { keywords: ['bread','toast','sourdough'], name: 'Sourdough Toast x2', calories: 190, protein: 7, carbs: 36, fat: 2, fiber: 2, sugar: 2 },
-  { keywords: ['pancake','pancakes'], name: 'Pancakes x2 (with syrup)', calories: 350, protein: 8, carbs: 55, fat: 8, fiber: 1, sugar: 20 },
-  { keywords: ['waffle','waffles'], name: 'Waffles x2', calories: 310, protein: 8, carbs: 47, fat: 10, fiber: 1, sugar: 12 },
-  { keywords: ['soup','lentil soup','chicken soup'], name: 'Chicken Soup (400ml)', calories: 180, protein: 14, carbs: 18, fat: 5, fiber: 2, sugar: 3 },
-  { keywords: ['avocado','avo'], name: 'Avocado (half)', calories: 160, protein: 2, carbs: 9, fat: 15, fiber: 7, sugar: 0 },
-  { keywords: ['sushi','roll'], name: 'Sushi Roll x8 pieces', calories: 330, protein: 12, carbs: 58, fat: 4, fiber: 1, sugar: 8 },
-  { keywords: ['kebab','shawarma','doner'], name: 'Chicken Kebab Wrap', calories: 490, protein: 35, carbs: 45, fat: 16, fiber: 3, sugar: 4 },
-  { keywords: ['peanut butter','pb'], name: 'Peanut Butter (2 tbsp)', calories: 188, protein: 8, carbs: 7, fat: 16, fiber: 2, sugar: 3 },
-  { keywords: ['almonds','nuts','almond'], name: 'Almonds (30g)', calories: 173, protein: 6, carbs: 6, fat: 15, fiber: 3, sugar: 1 },
-  { keywords: ['cheese','mozzarella','cheddar'], name: 'Cheese (30g)', calories: 114, protein: 7, carbs: 0, fat: 9, fiber: 0, sugar: 0 },
-  { keywords: ['milk'], name: 'Whole Milk (250ml)', calories: 149, protein: 8, carbs: 12, fat: 8, fiber: 0, sugar: 12 },
-  { keywords: ['coffee'], name: 'Black Coffee / Americano', calories: 5, protein: 0, carbs: 1, fat: 0, fiber: 0, sugar: 0 },
-  { keywords: ['latte','cappuccino'], name: 'Latte / Cappuccino', calories: 110, protein: 6, carbs: 10, fat: 4, fiber: 0, sugar: 8 },
-  { keywords: ['orange juice','juice'], name: 'Orange Juice (250ml)', calories: 112, protein: 2, carbs: 26, fat: 0, fiber: 0, sugar: 22 },
-  { keywords: ['cereal','granola'], name: 'Granola with Milk (60g)', calories: 420, protein: 12, carbs: 65, fat: 12, fiber: 5, sugar: 22 },
-  { keywords: ['broccoli','vegetables','veggies'], name: 'Steamed Broccoli (200g)', calories: 68, protein: 6, carbs: 14, fat: 0, fiber: 6, sugar: 3 },
-  { keywords: ['chips','french fries','fries'], name: 'French Fries (200g)', calories: 540, protein: 6, carbs: 70, fat: 26, fiber: 5, sugar: 0 },
-  { keywords: ['chocolate','choc'], name: 'Dark Chocolate (40g)', calories: 220, protein: 3, carbs: 22, fat: 13, fiber: 3, sugar: 16 },
-  { keywords: ['ice cream','icecream'], name: 'Ice Cream (150g)', calories: 270, protein: 4, carbs: 36, fat: 12, fiber: 0, sugar: 28 },
-  { keywords: ['donut','doughnut'], name: 'Glazed Donut', calories: 290, protein: 4, carbs: 40, fat: 12, fiber: 1, sugar: 22 },
-  { keywords: ['cookie','biscuit'], name: 'Chocolate Chip Cookie x2', calories: 220, protein: 3, carbs: 31, fat: 10, fiber: 1, sugar: 18 },
-  { keywords: ['meal prep','lunchbox','bento'], name: 'Meal Prep Box (chicken & rice)', calories: 580, protein: 48, carbs: 60, fat: 10, fiber: 4, sugar: 3 },
-  { keywords: ['tofu'], name: 'Firm Tofu (200g)', calories: 176, protein: 20, carbs: 4, fat: 10, fiber: 1, sugar: 1 },
-  { keywords: ['quinoa'], name: 'Quinoa (200g cooked)', calories: 222, protein: 8, carbs: 39, fat: 4, fiber: 5, sugar: 2 },
-  { keywords: ['lentil','lentils','dal'], name: 'Lentil Curry (300g)', calories: 310, protein: 18, carbs: 44, fat: 5, fiber: 10, sugar: 4 },
-  { keywords: ['fish','fish fillet','cod','tilapia'], name: 'Baked White Fish (200g)', calories: 210, protein: 44, carbs: 0, fat: 3, fiber: 0, sugar: 0 },
-  { keywords: ['turkey'], name: 'Turkey Breast (200g)', calories: 220, protein: 46, carbs: 0, fat: 2, fiber: 0, sugar: 0 },
-  { keywords: ['beef','ground beef','mince'], name: 'Lean Ground Beef (200g)', calories: 310, protein: 42, carbs: 0, fat: 15, fiber: 0, sugar: 0 },
+  // --- Proteins (Meat & Fish) ---
+  { keywords: ['chicken','grilled chicken','breast','fillet'], name: 'Grilled Chicken Breast (200g)', calories: 330, protein: 62, carbs: 0, fat: 7, fiber: 0, sugar: 0, iron: 2, magnesium: 50, healthScore: 92, pros: ['High Protein', 'Lean'], cons: ['Low Fat'] },
+  { keywords: ['steak','beef steak','ribeye','sirloin','beef'], name: 'Beef Sirloin Steak (200g)', calories: 480, protein: 50, carbs: 0, fat: 30, fiber: 0, sugar: 0, iron: 5, magnesium: 40, healthScore: 78, pros: ['Rich in Iron', 'B12 source'], cons: ['High Saturated Fat'] },
+  { keywords: ['salmon','grilled salmon','baked salmon','fish'], name: 'Grilled Salmon (180g)', calories: 375, protein: 36, carbs: 0, fat: 25, fiber: 0, sugar: 0, vitaminD: 15, iron: 1.5, healthScore: 95, pros: ['Omega-3 fatty acids', 'Muscle recovery'], cons: ['Calorie Dense'] },
+  { keywords: ['tuna','tuna can','canned tuna'], name: 'Canned Tuna in Water (150g)', calories: 160, protein: 38, carbs: 0, fat: 1, fiber: 0, sugar: 0, iron: 2, healthScore: 88, pros: ['Pure Protein', 'Low Calorie'], cons: ['Mercury Concerns'] },
+  { keywords: ['turkey','turkey breast'], name: 'Roasted Turkey Breast (200g)', calories: 230, protein: 48, carbs: 0, fat: 3, fiber: 0, sugar: 0, iron: 2, healthScore: 90, pros: ['Ultra Lean', 'Selenium'], cons: ['Dry Texture'] },
+  { keywords: ['egg','eggs','scramble','omelette'], name: 'Whole Eggs x3 (scrambled)', calories: 215, protein: 18, carbs: 2, fat: 15, fiber: 0, sugar: 1, vitaminD: 4, iron: 2.5, healthScore: 85, pros: ['Complete Protein', 'Choline'], cons: ['Dietary Cholesterol'] },
+  { keywords: ['egg white','egg whites'], name: 'Egg Whites x6', calories: 100, protein: 22, carbs: 1, fat: 0, fiber: 0, sugar: 0, healthScore: 94, pros: ['Purest Protein', 'Zero Fat'], cons: ['Flavorless'] },
+  { keywords: ['cod','white fish','tilapia','haddock'], name: 'Baked Cod Fillet (200g)', calories: 190, protein: 40, carbs: 0, fat: 2, fiber: 0, sugar: 0, healthScore: 89, pros: ['Very Low Calorie', 'Iodine'], cons: ['Low Omega-3s'] },
+  { keywords: ['shrimp','prawns'], name: 'Cooked Prawns/Shrimp (150g)', calories: 140, protein: 30, carbs: 1, fat: 1.5, fiber: 0, sugar: 0, iron: 1.8, healthScore: 86, pros: ['Iodine', 'Zinc'], cons: ['High Sodium'] },
+  { keywords: ['pork','pork chop','loin'], name: 'Grilled Pork Loin (200g)', calories: 410, protein: 42, carbs: 0, fat: 26, fiber: 0, sugar: 0, healthScore: 72, pros: ['Thiamine (B1)', 'Protein'], cons: ['Higher Fat Content'] },
+
+  // --- Plant Based Proteins ---
+  { keywords: ['tofu','bean curd'], name: 'Firm Tofu (200g)', calories: 165, protein: 18, carbs: 4, fat: 9, fiber: 2, sugar: 1, iron: 4, magnesium: 70, healthScore: 93, pros: ['Plant-based protein', 'Calcium'], cons: [] },
+  { keywords: ['tempeh'], name: 'Tempeh (150g)', calories: 290, protein: 30, carbs: 14, fat: 16, fiber: 8, sugar: 0, iron: 4, healthScore: 94, pros: ['Fermented', 'High Fiber'], cons: [] },
+  { keywords: ['lentils','lentil','daal','dal'], name: 'Cooked Lentils (200g)', calories: 230, protein: 18, carbs: 40, fat: 1, fiber: 16, sugar: 4, iron: 6.6, magnesium: 70, healthScore: 98, pros: ['Excellent Fiber', 'Complex Carbs'], cons: [] },
+  { keywords: ['chickpeas','hummus','garbanzo'], name: 'Cooked Chickpeas (200g)', calories: 330, protein: 14, carbs: 58, fat: 5, fiber: 14, sugar: 8, iron: 4.5, healthScore: 91, pros: ['Plant-based', 'Folative'], cons: [] },
+  { keywords: ['quinoa'], name: 'Cooked Quinoa (200g)', calories: 240, protein: 9, carbs: 44, fat: 4, fiber: 6, sugar: 2, magnesium: 120, healthScore: 96, pros: ['Superfood', 'Manganese'], cons: [] },
+
+  // --- Carbs & Grains ---
+  { keywords: ['rice','white rice'], name: 'Steamed White Rice (200g)', calories: 260, protein: 5, carbs: 56, fat: 1, fiber: 1, sugar: 0, healthScore: 65, pros: ['Quick Energy', 'Easy Digest'], cons: ['High Glycemic'] },
+  { keywords: ['brown rice'], name: 'Steamed Brown Rice (200g)', calories: 220, protein: 5, carbs: 45, fat: 2, fiber: 4, sugar: 0, magnesium: 80, healthScore: 88, pros: ['Whole Grain', 'B Vitamins'], cons: [] },
+  { keywords: ['sweet potato','yam'], name: 'Baked Sweet Potato (200g)', calories: 180, protein: 4, carbs: 42, fat: 0, fiber: 6, sugar: 9, vitaminC: 30, iron: 1.2, healthScore: 96, pros: ['Beta Carotene', 'Fiber'], cons: [] },
+  { keywords: ['potato','mashed potatoes','fries'], name: 'Boiled Potato (200g)', calories: 165, protein: 4, carbs: 37, fat: 0, fiber: 4, sugar: 2, vitaminC: 20, healthScore: 82, pros: ['Potassium', 'Satiating'], cons: [] },
+  { keywords: ['oatmeal','oats','porridge'], name: 'Steel Cut Oats (80g dry)', calories: 300, protein: 11, carbs: 54, fat: 6, fiber: 8, sugar: 1, iron: 3.5, healthScore: 97, pros: ['Heart Healthy', 'Sustained Energy'], cons: [] },
+  { keywords: ['bread','whole wheat','toast'], name: 'Whole Wheat Bread (2 slices)', calories: 160, protein: 8, carbs: 26, fat: 2, fiber: 4, sugar: 3, healthScore: 80, pros: ['Fiber', 'Convenient'], cons: [] },
+  { keywords: ['pasta','spaghetti','noodles'], name: 'Pasta (200g cooked)', calories: 320, protein: 12, carbs: 62, fat: 2, fiber: 3, sugar: 2, healthScore: 70, pros: ['Carb loading', 'Thiamine'], cons: [] },
+
+  // --- Fruits ---
+  { keywords: ['banana'], name: 'Banana (Large)', calories: 120, protein: 1.5, carbs: 31, fat: 0, fiber: 4, sugar: 15, vitaminC: 10, healthScore: 85, pros: ['Potassium', 'Pre-workout carbs'], cons: [] },
+  { keywords: ['apple'], name: 'Apple (Medium)', calories: 95, protein: 0.5, carbs: 25, fat: 0, fiber: 4.5, sugar: 19, vitaminC: 8, healthScore: 90, pros: ['Fiber (Pectin)', 'Hydrating'], cons: [] },
+  { keywords: ['blueberries','berries','strawberry'], name: 'Mixed Berries (150g)', calories: 85, protein: 1, carbs: 21, fat: 0, fiber: 6, sugar: 14, vitaminC: 60, healthScore: 99, pros: ['Antioxidants', 'Low Calorie'], cons: [] },
+  { keywords: ['avocado'], name: 'Hass Avocado (Half)', calories: 160, protein: 2, carbs: 8, fat: 15, fiber: 7, sugar: 1, vitaminC: 5, magnesium: 30, healthScore: 96, pros: ['Healthy Monounsaturated Fats', 'Fiber'], cons: ['Calorie Dense'] },
+
+  // --- Vegetables ---
+  { keywords: ['broccoli'], name: 'Steamed Broccoli (200g)', calories: 70, protein: 6, carbs: 14, fat: 0.5, fiber: 6, sugar: 3, vitaminC: 150, iron: 1.5, healthScore: 100, pros: ['Vitamin C Overload', 'Cancer fighting'], cons: [] },
+  { keywords: ['spinach','kale'], name: 'Fresh Spinach (100g)', calories: 23, protein: 3, carbs: 4, fat: 0.5, fiber: 2.2, sugar: 0.4, vitaminC: 30, iron: 2.7, healthScore: 99, pros: ['Vitamin K', 'Magnesium'], cons: [] },
+  { keywords: ['carrot','carrots'], name: 'Carrots (100g)', calories: 41, protein: 1, carbs: 10, fat: 0.2, fiber: 3, sugar: 5, healthScore: 94, pros: ['Vitamin A', 'Eye health'], cons: [] },
+
+  // --- Supplements & Performance ---
+  { keywords: ['whey','protein powder','whey isolate'], name: 'Whey Protein Isolate (1 scoop)', calories: 120, protein: 26, carbs: 2, fat: 0.5, fiber: 0, sugar: 1, healthScore: 85, pros: ['Rapid Absorption', 'Muscle repair'], cons: ['Processed'] },
+  { keywords: ['creatine'], name: 'Creatine Monohydrate (5g)', calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0, healthScore: 100, pros: ['ATP Production', 'Increased strength'], cons: [] },
+  { keywords: ['bcaa'], name: 'BCAA Powder (7g scoop)', calories: 5, protein: 0, carbs: 0, fat: 0, fiber: 0, sugar: 0, healthScore: 78, pros: ['Leucine content', 'Muscle sparing'], cons: [] },
+  { keywords: ['casein'], name: 'Micellar Casein (1 scoop)', calories: 120, protein: 24, carbs: 3, fat: 1, fiber: 0, sugar: 1, healthScore: 88, pros: ['Slow digestion', 'Best for pre-bed'], cons: [] },
+
+  // --- Snacks & Treats ---
+  { keywords: ['almonds','nuts'], name: 'Raw Almonds (30g)', calories: 175, protein: 6, carbs: 6, fat: 15, fiber: 4, sugar: 1, magnesium: 80, healthScore: 92, pros: ['Healthy fats', 'Vitamin E'], cons: ['Easy to overeat'] },
+  { keywords: ['peanut butter','pb'], name: 'Natural Peanut Butter (2 tbsp)', calories: 190, protein: 8, carbs: 6, fat: 16, fiber: 2, sugar: 2, healthScore: 82, pros: ['High energy', 'Protein source'], cons: ['High calorie'] },
+  { keywords: ['chocolate','dark chocolate'], name: 'Dark Chocolate 85% (40g)', calories: 230, protein: 3, carbs: 14, fat: 18, fiber: 4, sugar: 6, iron: 4, healthScore: 75, pros: ['Flavonoids', 'Magnesium'], cons: ['Saturated fat'] },
+  { keywords: ['pizza','slice'], name: 'Pepperoni Pizza (1 slice)', calories: 310, protein: 14, carbs: 38, fat: 13, fiber: 2, sugar: 5, healthScore: 35, pros: ['Satiating'], cons: ['Ultra Processed', 'High Sodium'] },
+  { keywords: ['burger','cheeseburger'], name: 'Fast Food Burger', calories: 550, protein: 28, carbs: 45, fat: 32, fiber: 2, sugar: 10, healthScore: 30, pros: ['Convenient'], cons: ['Trans fats', 'High sodium'] },
 ];
 
 // ─── Fuzzy keyword matching ─────────────────────────────────────────────────
+// ─ Fuzzy keyword matching ─────────────────────────────────────────────────
 function findBestMatch(query: string) {
   const q = query.toLowerCase().trim();
   if (!q) return null;
@@ -85,25 +94,36 @@ function findBestMatch(query: string) {
 
   for (const item of FOOD_DB) {
     for (const kw of item.keywords) {
-      // Exact keyword match
-      if (q === kw) { return item; }
-      // Keyword contains query or query contains keyword
-      if (kw.includes(q) || q.includes(kw)) {
-        const score = kw.length / Math.max(q.length, kw.length);
+      // 1. Exact match (highest priority)
+      if (q === kw) { 
+        return { ...item, matchConfidence: 100 }; 
+      }
+      
+      // 2. Starts with query (high priority)
+      if (kw.startsWith(q)) {
+        const score = 0.9 + (q.length / kw.length) * 0.1;
         if (score > bestScore) { bestScore = score; bestItem = item; }
       }
-      // Partial word match
+
+      // 3. Contains query
+      if (kw.includes(q)) {
+        const score = 0.7 + (q.length / kw.length) * 0.2;
+        if (score > bestScore) { bestScore = score; bestItem = item; }
+      }
+
+      // 4. Word overlap matching
       const qWords = q.split(/\s+/);
       const kwWords = kw.split(/\s+/);
       const overlap = qWords.filter(w => kwWords.some(k => k.includes(w) || w.includes(k)));
       if (overlap.length > 0) {
-        const score = overlap.length / Math.max(qWords.length, kwWords.length) * 0.8;
+        const score = (overlap.length / Math.max(qWords.length, kwWords.length)) * 0.8;
         if (score > bestScore) { bestScore = score; bestItem = item; }
       }
     }
   }
 
-  return bestScore > 0 ? bestItem : null;
+  // Return item with calculated confidence percentage
+  return bestScore > 0 ? { ...bestItem, matchConfidence: Math.floor(bestScore * 100) } : null;
 }
 
 // Extract readable name hints from image filename
@@ -116,7 +136,11 @@ function extractFilenameHint(uri: string): string {
   } catch { return ''; }
 }
 
-type ScanResult = typeof FOOD_DB[0] & { matchConfidence: number; matchedBy: string };
+type ScanResult = typeof FOOD_DB[0] & { 
+  matchConfidence: number; 
+  matchedBy: string;
+  portionScale?: number;
+};
 
 export default function NutritionModal() {
   const router = useRouter();
@@ -178,21 +202,19 @@ export default function NutritionModal() {
       if (matchedByFilename) {
         setScanResult({
           ...matchedByFilename,
-          matchConfidence: Math.floor(Math.random() * 8) + 82, // 82-89%
-          matchedBy: `Identified from image: "${hint}"`,
+          portionScale: 1,
+          matchedBy: `Vision AI: "${hint}"`,
         });
       } else {
-        // Filename gives no clues — show a prompt to use the manual search
         setScanResult(null);
         Alert.alert(
-          '🔍 Image Analysis Complete',
-          'The AI could not identify the food from the image filename alone.\n\nPlease use the "Search Food" box below to get accurate nutrition info for your meal.',
+          '🔍 Scanning Complete',
+          'AI Vision needs more metadata. Please search for the food name manually below.',
         );
       }
     }, 2500);
   };
 
-  // ── Manual Search ─────────────────────────────────────────────────────────
   const handleSearch = () => {
     if (!searchQuery.trim()) return;
     setHasSearched(true);
@@ -200,8 +222,8 @@ export default function NutritionModal() {
     if (match) {
       setSearchResult({
         ...match,
-        matchConfidence: 100,
-        matchedBy: `Searched: "${searchQuery}"`,
+        portionScale: 1,
+        matchedBy: `Direct Search: "${searchQuery}"`,
       });
     } else {
       setSearchResult(null);
@@ -209,6 +231,12 @@ export default function NutritionModal() {
   };
 
   const displayResult = scanResult || searchResult;
+
+  // Scaling logic
+  const scaleValue = (val: number | undefined, scale: number) => {
+    if (val === undefined) return 0;
+    return Math.round(val * scale);
+  };
 
   const generateMealPlan = () => {
     setIsGenerating(true);
@@ -254,16 +282,19 @@ export default function NutritionModal() {
 
   // ── Result Card ───────────────────────────────────────────────────────────
   const ResultCard = ({ result }: { result: ScanResult }) => {
+    const [portion, setPortion] = useState<'Small' | 'Standard' | 'Athlete'>('Standard');
     const [isEditing, setIsEditing] = React.useState(false);
     const [edited, setEdited] = React.useState(result);
 
+    const scale = portion === 'Small' ? 0.7 : portion === 'Athlete' ? 1.5 : 1;
+
     React.useEffect(() => {
-      setEdited(result);
+      setEdited({ ...result, portionScale: scale });
       setIsEditing(false);
-    }, [result]);
+    }, [result, portion]);
 
     const handleSaveLog = () => {
-      Alert.alert('✅ Saved', `Added ${edited.calories} Kcals of ${edited.name} to your daily log.`);
+      Alert.alert('✅ Logged', `${edited.name} added to your daily tracker.`);
       setImageUri(null); setScanResult(null); setSearchResult(null);
       setSearchQuery(''); setHasSearched(false);
     };
@@ -271,90 +302,36 @@ export default function NutritionModal() {
     return (
     <View style={styles.resultCard}>
       <View style={styles.resultHeader}>
-        <CheckCircle size={18} color="#10b981" />
-        <Text style={styles.resultMatch}>{result.matchConfidence}% Match</Text>
+        <View style={[styles.matchBadge, {backgroundColor: result.matchConfidence > 90 ? '#10b981' : '#f59e0b'}]}>
+          <Text style={styles.matchText}>{result.matchConfidence}% Accuracy</Text>
+        </View>
         <Text style={styles.matchedBy}>{result.matchedBy}</Text>
       </View>
-      <Text style={styles.foodName}>{result.name}</Text>
+
+      <View style={styles.mainInfoRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.foodName}>{result.name}</Text>
+          <View style={styles.portionRow}>
+            {(['Small', 'Standard', 'Athlete'] as const).map(p => (
+              <TouchableOpacity 
+                key={p} 
+                onPress={() => setPortion(p)}
+                style={[styles.portionBtn, portion === p && styles.portionBtnActive]}
+              >
+                <Text style={[styles.portionBtnText, portion === p && styles.portionBtnTextActive]}>{p}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+        <View style={styles.healthScoreContainer}>
+          <View style={[styles.scoreCircle, { borderColor: result.healthScore > 80 ? '#10b981' : '#f59e0b' }]}>
+            <Text style={styles.scoreVal}>{result.healthScore}</Text>
+            <Text style={styles.scoreLabel}>Health</Text>
+          </View>
+        </View>
+      </View>
 
       <View style={styles.macroGrid}>
-        <View style={styles.macroCard}>
-          <Flame size={18} color="#ff6b6b" />
-          {isEditing ? (
-            <TextInput style={styles.editInput} value={String(edited.calories)} onChangeText={(v) => setEdited({...edited, calories: parseInt(v)||0})} keyboardType="numeric" />
-          ) : (
-            <Text style={styles.macroValue}>{edited.calories}</Text>
-          )}
-          <Text style={styles.macroLabel}>Kcals</Text>
-        </View>
-        <View style={styles.macroCard}>
-          <Beaker size={18} color="#10b981" />
-          {isEditing ? (
-            <TextInput style={styles.editInput} value={String(edited.protein)} onChangeText={(v) => setEdited({...edited, protein: parseInt(v)||0})} keyboardType="numeric" />
-          ) : (
-            <Text style={styles.macroValue}>{edited.protein}g</Text>
-          )}
-          <Text style={styles.macroLabel}>Protein</Text>
-        </View>
-        <View style={styles.macroCard}>
-          <Beaker size={18} color="#f59e0b" />
-          {isEditing ? (
-            <TextInput style={styles.editInput} value={String(edited.carbs)} onChangeText={(v) => setEdited({...edited, carbs: parseInt(v)||0})} keyboardType="numeric" />
-          ) : (
-            <Text style={styles.macroValue}>{edited.carbs}g</Text>
-          )}
-          <Text style={styles.macroLabel}>Carbs</Text>
-        </View>
-        <View style={styles.macroCard}>
-          <Beaker size={18} color="#3b82f6" />
-          {isEditing ? (
-            <TextInput style={styles.editInput} value={String(edited.fat)} onChangeText={(v) => setEdited({...edited, fat: parseInt(v)||0})} keyboardType="numeric" />
-          ) : (
-            <Text style={styles.macroValue}>{edited.fat}g</Text>
-          )}
-          <Text style={styles.macroLabel}>Fat</Text>
-        </View>
-      </View>
-
-      {/* Extra nutrition detail */}
-      <View style={styles.extraRow}>
-        <View style={styles.extraPill}>
-          <Text style={styles.extraLabel}>Fiber</Text>
-          {isEditing ? (
-            <TextInput style={styles.editInputSmall} value={String(edited.fiber)} onChangeText={(v) => setEdited({...edited, fiber: parseInt(v)||0})} keyboardType="numeric" />
-          ) : (
-            <Text style={styles.extraVal}>{edited.fiber}g</Text>
-          )}
-        </View>
-        <View style={styles.extraPill}>
-          <Text style={styles.extraLabel}>Sugar</Text>
-          {isEditing ? (
-            <TextInput style={styles.editInputSmall} value={String(edited.sugar)} onChangeText={(v) => setEdited({...edited, sugar: parseInt(v)||0})} keyboardType="numeric" />
-          ) : (
-            <Text style={styles.extraVal}>{edited.sugar}g</Text>
-          )}
-        </View>
-        <View style={styles.extraPill}>
-          <Text style={styles.extraLabel}>Cal/Protein</Text>
-          <Text style={styles.extraVal}>{edited.protein > 0 ? (edited.calories / edited.protein).toFixed(1) : '—'}:1</Text>
-        </View>
-      </View>
-
-      <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
-        {isEditing ? (
-          <TouchableOpacity style={[styles.logBtn, {backgroundColor: '#10b981', flex: 1}]} onPress={() => setIsEditing(false)}>
-            <CheckCircle size={18} color="#fff" />
-            <Text style={styles.logBtnText}>Done Editing</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity style={[styles.logBtn, {backgroundColor: COLORS.surfaceLight, flex: 1}]} onPress={() => setIsEditing(true)}>
-            <Text style={[styles.logBtnText, {color: COLORS.text}]}>Edit Macros</Text>
-          </TouchableOpacity>
-        )}
-        <TouchableOpacity style={[styles.logBtn, {flex: 1}]} onPress={handleSaveLog}>
-          <Target size={18} color="#fff" />
-          <Text style={styles.logBtnText}>Add to Log</Text>
-        </TouchableOpacity>
       </View>
 
       <TouchableOpacity style={styles.rescanInlineBtn} onPress={() => {
@@ -418,12 +395,23 @@ export default function NutritionModal() {
             ) : (
               <View style={styles.imageContainer}>
                 <Image source={{ uri: imageUri || '' }} style={styles.scannedImage} />
-                {isScanning && (
+                {isScanning ? (
                   <View style={styles.scanningOverlay}>
                     <Animated.View style={[styles.scanLine, { transform: [{ translateY }] }]} />
                     <View style={styles.scanTextContainer}>
                       <ActivityIndicator size="small" color={COLORS.primary} />
-                      <Text style={styles.scanText}>Analyzing image with AI...</Text>
+                      <Text style={styles.scanText}>Hyper-Vision Scanning...</Text>
+                    </View>
+                  </View>
+                ) : (
+                  <View style={styles.hudOverlay}>
+                    <View style={styles.targetBox} />
+                    <View style={styles.hudMarkerTopLeft} />
+                    <View style={styles.hudMarkerTopRight} />
+                    <View style={styles.hudMarkerBottomLeft} />
+                    <View style={styles.hudMarkerBottomRight} />
+                    <View style={styles.hudDataPill}>
+                      <Text style={styles.hudDataText}>SENSOR ACTIVE: MULTIMODAL V2</Text>
                     </View>
                   </View>
                 )}
@@ -610,31 +598,54 @@ const styles = StyleSheet.create({
   noResultSub: { color: COLORS.textSecondary, fontSize: 13 },
   // Results
   resultCard: {
-    backgroundColor: COLORS.surface, borderRadius: 16, padding: 20,
-    marginTop: 16, borderWidth: 1, borderColor: '#10b981',
+    backgroundColor: COLORS.surface, borderRadius: 16, padding: 18,
+    marginTop: 16, borderWidth: 1, borderColor: COLORS.border,
   },
-  resultHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
-  resultMatch: { color: '#10b981', fontSize: 13, fontWeight: 'bold' },
-  matchedBy: { color: COLORS.textSecondary, fontSize: 11, flex: 1 },
-  foodName: { color: COLORS.text, fontSize: 20, fontWeight: 'bold', marginBottom: 16 },
-  macroGrid: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  resultHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+  matchBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  matchText: { color: COLORS.background, fontSize: 10, fontWeight: 'bold' },
+  matchedBy: { color: COLORS.textSecondary, fontSize: 11, fontStyle: 'italic' },
+  mainInfoRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
+  foodName: { color: COLORS.text, fontSize: 20, fontWeight: 'bold', marginBottom: 8 },
+  portionRow: { flexDirection: 'row', gap: 6, marginTop: 4 },
+  portionBtn: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, backgroundColor: COLORS.surfaceLight },
+  portionBtnActive: { backgroundColor: COLORS.primary },
+  portionBtnText: { color: COLORS.textSecondary, fontSize: 10, fontWeight: '600' },
+  portionBtnTextActive: { color: COLORS.background },
+  healthScoreContainer: { alignItems: 'center', justifyContent: 'center' },
+  scoreCircle: { 
+    width: 60, height: 60, borderRadius: 30, borderWidth: 3, 
+    alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.surfaceLight 
+  },
+  scoreVal: { color: COLORS.text, fontSize: 18, fontWeight: 'bold' },
+  scoreLabel: { color: COLORS.textSecondary, fontSize: 8, marginTop: -2 },
+  macroGrid: { flexDirection: 'row', gap: 8, marginBottom: 20 },
   macroCard: {
-    flex: 1, backgroundColor: COLORS.surfaceLight, borderRadius: 12, padding: 12,
-    alignItems: 'center', gap: 4,
+    flex: 1, backgroundColor: COLORS.surfaceLight, borderRadius: 12, padding: 10,
+    alignItems: 'center', gap: 4, borderBottomWidth: 2, borderBottomColor: COLORS.border,
   },
-  macroValue: { color: COLORS.text, fontSize: 16, fontWeight: 'bold' },
-  macroLabel: { color: COLORS.textSecondary, fontSize: 10 },
-  extraRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
-  extraPill: {
-    flex: 1, backgroundColor: COLORS.surfaceLight || COLORS.surface, borderRadius: 10,
-    padding: 10, alignItems: 'center',
+  macroValue: { fontSize: 15, fontWeight: 'bold' },
+  macroLabel: { color: COLORS.textSecondary, fontSize: 9 },
+  // Insights
+  insightSection: { 
+    backgroundColor: COLORS.surfaceLight, borderRadius: 12, padding: 12, marginBottom: 16,
+    borderWidth: 1, borderStyle: 'dashed', borderColor: COLORS.border 
   },
-  extraLabel: { color: COLORS.textSecondary, fontSize: 10, marginBottom: 2 },
-  extraVal: { color: COLORS.text, fontSize: 13, fontWeight: 'bold' },
-  editInput: { backgroundColor: COLORS.background, borderRadius: 6, color: COLORS.text, fontSize: 15, fontWeight: 'bold', padding: 4, width: '100%', textAlign: 'center', borderBottomWidth: 1, borderColor: COLORS.primary },
-  editInputSmall: { backgroundColor: COLORS.background, borderRadius: 6, color: COLORS.text, fontSize: 13, fontWeight: 'bold', padding: 4, width: '80%', textAlign: 'center' },
-  logBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: COLORS.primary, borderRadius: 12, paddingVertical: 12 },
-  logBtnText: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
+  insightTitle: { color: COLORS.primary, fontSize: 11, fontWeight: 'bold', marginBottom: 8, textTransform: 'uppercase' },
+  microGrid: { flexDirection: 'row', justifyContent: 'space-between' },
+  microItem: { alignItems: 'center' },
+  microLabel: { color: COLORS.textSecondary, fontSize: 9 },
+  microVal: { color: COLORS.text, fontSize: 12, fontWeight: 'bold' },
+  prosConsSection: { flexDirection: 'row', gap: 12, marginBottom: 20 },
+  pcHeader: { color: COLORS.textSecondary, fontSize: 10, fontWeight: 'bold', marginBottom: 6, textTransform: 'uppercase' },
+  tagContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  tag: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+  tagText: { fontSize: 10, fontWeight: 'bold' },
+  logFullBtn: { 
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: COLORS.primary, paddingVertical: 14, borderRadius: 12 
+  },
+  logFullText: { color: COLORS.background, fontSize: 15, fontWeight: 'bold' },
   rescanInlineBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 16 },
   rescanInlineText: { color: COLORS.textSecondary, fontSize: 12, fontWeight: '600' },
   rescanBtn: {
@@ -642,6 +653,15 @@ const styles = StyleSheet.create({
     paddingVertical: 10, marginTop: 8,
   },
   rescanBtnText: { color: COLORS.primary, fontWeight: '600', fontSize: 13 },
+  // HUD
+  hudOverlay: { ...StyleSheet.absoluteFillObject, padding: 20, justifyContent: 'center', alignItems: 'center' },
+  targetBox: { width: '80%', height: '80%', borderWidth: 1, borderColor: 'rgba(59, 130, 246, 0.3)', borderStyle: 'dashed' },
+  hudMarkerTopLeft: { position: 'absolute', top: 30, left: 30, width: 20, height: 20, borderTopWidth: 2, borderLeftWidth: 2, borderColor: COLORS.primary },
+  hudMarkerTopRight: { position: 'absolute', top: 30, right: 30, width: 20, height: 20, borderTopWidth: 2, borderRightWidth: 2, borderColor: COLORS.primary },
+  hudMarkerBottomLeft: { position: 'absolute', bottom: 30, left: 30, width: 20, height: 20, borderBottomWidth: 2, borderLeftWidth: 2, borderColor: COLORS.primary },
+  hudMarkerBottomRight: { position: 'absolute', bottom: 30, right: 30, width: 20, height: 20, borderBottomWidth: 2, borderRightWidth: 2, borderColor: COLORS.primary },
+  hudDataPill: { position: 'absolute', bottom: 15, backgroundColor: 'rgba(59, 130, 246, 0.2)', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(59, 130, 246, 0.4)' },
+  hudDataText: { color: COLORS.primary, fontSize: 8, fontWeight: 'bold', letterSpacing: 1 },
   // Planner
   goalSelector: { backgroundColor: COLORS.surface, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: COLORS.border, marginBottom: 16 },
   goalLabel: { color: COLORS.textSecondary, fontWeight: 'bold', marginBottom: 12 },
