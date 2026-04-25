@@ -41,19 +41,23 @@ function getDNAInsight(lifestyle: string, level: string, goal: string): string {
 
 export default function ProfileModal() {
   const router = useRouter();
-  const { userProfile, updateDisplayName, history } = useWorkout();
+  const { userProfile, updateProfile, history } = useWorkout();
   const [nameInput, setNameInput] = useState(userProfile?.displayName || '');
   const [isSaving, setIsSaving] = useState(false);
 
   // DNA State
   const [activeTab, setActiveTab] = useState<'profile' | 'dna'>('profile');
-  const [selectedLifestyle, setSelectedLifestyle] = useState('');
-  const [selectedLevel, setSelectedLevel] = useState('');
-  const [selectedGoal, setSelectedGoal] = useState('');
-  const [dnaLocked, setDnaLocked] = useState(false);
+  const [selectedLifestyle, setSelectedLifestyle] = useState(userProfile?.lifestyle || '');
+  const [selectedLevel, setSelectedLevel] = useState(userProfile?.fitnessLevel || '');
+  const [selectedGoal, setSelectedGoal] = useState(userProfile?.primaryGoal || '');
+  const [dnaLocked, setDnaLocked] = useState(userProfile?.dnaLocked || false);
 
   useEffect(() => {
     if (userProfile?.displayName) setNameInput(userProfile.displayName);
+    if (userProfile?.lifestyle) setSelectedLifestyle(userProfile.lifestyle);
+    if (userProfile?.fitnessLevel) setSelectedLevel(userProfile.fitnessLevel);
+    if (userProfile?.primaryGoal) setSelectedGoal(userProfile.primaryGoal);
+    if (userProfile?.dnaLocked !== undefined) setDnaLocked(userProfile.dnaLocked);
   }, [userProfile]);
 
   const handleSave = async () => {
@@ -62,7 +66,7 @@ export default function ProfileModal() {
       return;
     }
     setIsSaving(true);
-    await updateDisplayName(nameInput.trim());
+    await updateProfile({ displayName: nameInput.trim() });
     setIsSaving(false);
     Alert.alert('Profile Updated', 'Your changes have been saved.');
   };
@@ -85,12 +89,18 @@ export default function ProfileModal() {
     );
   };
 
-  const handleLockDNA = () => {
+  const handleLockDNA = async () => {
     if (!selectedLifestyle || !selectedLevel || !selectedGoal) {
       Alert.alert('Incomplete Profile', 'Select all three DNA options to lock your profile.');
       return;
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    await updateProfile({
+      lifestyle: selectedLifestyle,
+      fitnessLevel: selectedLevel,
+      primaryGoal: selectedGoal,
+      dnaLocked: true
+    });
     setDnaLocked(true);
     Alert.alert('🧬 Fitness DNA Locked!', 'Your IronPulse experience is now fully personalized.');
   };

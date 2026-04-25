@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { COLORS } from '@/constants/Colors';
-import { Play, Square, RotateCcw, Plus, Minus, Zap } from 'lucide-react-native';
+import { Play, Square, RotateCcw, Plus, Minus, X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-
+import { useRouter } from 'expo-router';
 import { useWorkout } from '@/context/WorkoutContext';
+import Animated, { FadeIn } from 'react-native-reanimated';
 
-export default function TimerScreen() {
+export default function TimerModal() {
+  const router = useRouter();
   const { timeLeft, setTimeLeft, initialTime, setInitialTime, isTimerActive, setIsTimerActive } = useWorkout();
 
   // Pulse effect logic
@@ -61,7 +63,14 @@ export default function TimerScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <Animated.View style={styles.container} entering={FadeIn}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Active Timer</Text>
+        <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()}>
+          <X size={24} color={COLORS.text} />
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.clockWrapper}>
         <View style={styles.progressCircle}>
           <Text style={styles.timeText}>{formatTime(timeLeft)}</Text>
@@ -125,7 +134,7 @@ export default function TimerScreen() {
           ))}
         </ScrollView>
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -135,14 +144,36 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     padding: 20,
   },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 20,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: COLORS.text,
+  },
+  closeBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
   clockWrapper: {
     alignItems: 'center',
-    marginVertical: 40,
+    marginVertical: 20,
   },
   progressCircle: {
-    width: 280,
-    height: 280,
-    borderRadius: 140,
+    width: 260,
+    height: 260,
+    borderRadius: 130,
     borderWidth: 8,
     borderColor: COLORS.primaryDim,
     alignItems: 'center',
@@ -152,7 +183,7 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '-45deg' }],
   },
   timeText: {
-    fontSize: 72,
+    fontSize: 68,
     fontWeight: 'bold',
     color: COLORS.text,
     transform: [{ rotate: '45deg' }],
@@ -167,7 +198,7 @@ const styles = StyleSheet.create({
   adjustControls: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 24,
+    marginTop: 20,
     gap: 16,
   },
   adjustBtn: {
@@ -189,13 +220,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 32,
-    marginBottom: 40,
+    gap: 24,
+    marginBottom: 30,
   },
   controlBtn: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: COLORS.surface,
     alignItems: 'center',
     justifyContent: 'center',
@@ -204,13 +235,13 @@ const styles = StyleSheet.create({
   },
   controlBtnText: {
     color: COLORS.text,
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
   },
   mainBtn: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     backgroundColor: COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
@@ -222,21 +253,21 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   presetTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: COLORS.text,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   presetsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 10,
     paddingBottom: 20,
   },
   presetBtn: {
     width: '48%',
     backgroundColor: COLORS.surface,
-    paddingVertical: 16,
+    paddingVertical: 14,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
@@ -249,7 +280,7 @@ const styles = StyleSheet.create({
   },
   presetText: {
     color: COLORS.text,
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '500',
   },
   presetTextActive: {

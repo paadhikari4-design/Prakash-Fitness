@@ -7,15 +7,30 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 const { width } = Dimensions.get('window');
 
+import { useRouter } from 'expo-router';
+import { useWorkout } from '@/context/WorkoutContext';
+
 export default function NutritionModal() {
-  const [waterCups, setWaterCups] = useState(5);
-  const calorieGoal = 2500;
-  const caloriesConsumed = 1840;
+  const router = useRouter();
+  const { nutrition, habits, updateHabits, userProfile } = useWorkout();
+  
+  const goals = userProfile?.goals || {
+    calories: 2500,
+    protein: 180,
+    carbs: 250,
+    fat: 70,
+    water: 8,
+    sleep: 8,
+    steps: 10000
+  };
+
+  const caloriesConsumed = nutrition?.calories || 0;
+  const calorieGoal = goals.calories;
 
   const macros = [
-    { label: 'Protein', value: 145, goal: 180, color: '#ef4444', icon: Beef },
-    { label: 'Carbs', value: 210, goal: 280, color: '#f59e0b', icon: Wheat },
-    { label: 'Fats', value: 52, goal: 70, color: '#10b981', icon: Apple },
+    { label: 'Protein', value: nutrition?.protein || 0, goal: goals.protein, color: '#ef4444', icon: Beef },
+    { label: 'Carbs', value: nutrition?.carbs || 0, goal: goals.carbs, color: '#f59e0b', icon: Wheat },
+    { label: 'Fats', value: nutrition?.fat || 0, goal: goals.fat, color: '#10b981', icon: Apple },
   ];
 
   return (
@@ -95,20 +110,20 @@ export default function NutritionModal() {
             </View>
             <View>
               <Text style={styles.waterTitle}>Water Intake</Text>
-              <Text style={styles.waterSubtitle}>{waterCups * 250}ml of 2500ml</Text>
+              <Text style={styles.waterSubtitle}>{Math.round((habits?.waterGlasses || 0) * 250)}ml of {goals.water * 250}ml</Text>
             </View>
           </View>
           <View style={styles.waterControls}>
             <TouchableOpacity
               style={styles.waterBtn}
-              onPress={() => setWaterCups(Math.max(0, waterCups - 1))}
+              onPress={() => updateHabits({ waterGlasses: Math.max(0, (habits?.waterGlasses || 0) - 1) })}
             >
               <Text style={styles.waterBtnText}>-</Text>
             </TouchableOpacity>
-            <Text style={styles.waterCount}>{waterCups}</Text>
+            <Text style={styles.waterCount}>{habits?.waterGlasses || 0}</Text>
             <TouchableOpacity
               style={[styles.waterBtn, styles.waterBtnAdd]}
-              onPress={() => setWaterCups(waterCups + 1)}
+              onPress={() => updateHabits({ waterGlasses: (habits?.waterGlasses || 0) + 1 })}
             >
               <Plus size={20} color="#fff" />
             </TouchableOpacity>

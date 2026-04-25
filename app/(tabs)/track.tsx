@@ -384,7 +384,7 @@ export default function TrackScreen() {
         style={styles.hyperScanFab} 
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          router.push('/modal');
+          router.push('/(tabs)/scanner');
         }}
         activeOpacity={0.9}
       >

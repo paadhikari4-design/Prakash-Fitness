@@ -10,48 +10,75 @@ import { useWorkout, Exercise } from '@/context/WorkoutContext';
 
 export default function AIGeneratorModal() {
   const router = useRouter();
-  const { setExercises, setWorkoutTime } = useWorkout();
+  const { setExercises, setWorkoutTime, readinessScore, recoveryModifier, history } = useWorkout();
 
   const [fatigue, setFatigue] = useState(5);
   const [goal, setGoal] = useState<'Hypertrophy' | 'Fat Loss' | 'Strength'>('Hypertrophy');
   const [isGenerating, setIsGenerating] = useState(false);
 
+  /**
+   * AI Routine Generator Logic
+   * 1. Scaling Volume: V(n) = S * r * w * f(R)
+   * 2. Progressive Overload: w_n+1 = w_n * 1.025 if R >= 70
+   * 3. Adaptive Volume: Modifies sets/reps based on f(R)
+   */
   const generateWorkout = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setIsGenerating(true);
 
-    // Simulate AI generation time
     setTimeout(() => {
-      let selectedExercises: any[] = [];
-
-      // Basic AI Logic based on Fatigue and Goal
-      if (fatigue > 7) {
-        // High fatigue: easy machines, isolation, low volume
-        selectedExercises = EXERCISE_DATA.filter(e => e.target !== 'Legs' && e.target !== 'Back').slice(0, 3);
-      } else {
-        // Low fatigue: Compound movements based on goal
-        if (goal === 'Strength') {
-          selectedExercises = EXERCISE_DATA.filter(e => ['Barbell Bench Press', 'Barbell Squat', 'Barbell Deadlift', 'Pull Up'].includes(e.name));
-        } else if (goal === 'Fat Loss') {
-          selectedExercises = EXERCISE_DATA.filter(e => ['Kettlebell Swing', 'Walking Lunge', 'Dumbbell Romanian Deadlift'].includes(e.name) || e.target === 'Core');
-        } else {
-          selectedExercises = EXERCISE_DATA.slice(Math.floor(Math.random() * 5), Math.floor(Math.random() * 5) + 4);
-        }
+      // 1. Select Exercises based on Goal and Entropy (priority to least recently used)
+      // For simplicity, we'll pick 4 relevant exercises
+      let pool = EXERCISE_DATA;
+      if (goal === 'Strength') {
+        pool = EXERCISE_DATA.filter(e => ['Chest', 'Legs', 'Back'].includes(e.target));
+      } else if (goal === 'Fat Loss') {
+        pool = EXERCISE_DATA.filter(e => e.target === 'Full Body' || e.target === 'Core' || e.target === 'Legs');
       }
+      
+      // Shuffle for variety (Entropy)
+      const selectedExercises = [...pool].sort(() => 0.5 - Math.random()).slice(0, 4);
 
-      // Ensure we have something
-      if (selectedExercises.length === 0) selectedExercises = EXERCISE_DATA.slice(0, 4);
+      // 2. Apply Adaptive Volume & Progressive Overload
+      const generatedWorkout: Exercise[] = selectedExercises.map(ex => {
+        // Find last performance for this exercise
+        let lastWeight = 0;
+        let lastReps = goal === 'Strength' ? 5 : goal === 'Fat Loss' ? 15 : 10;
+        let lastSetsCount = 3;
 
-      // Convert to WorkoutContext format
-      const generatedWorkout: Exercise[] = selectedExercises.map(ex => ({
-        id: Math.random().toString(),
-        name: ex.name,
-        sets: [
-          { id: Math.random().toString(), reps: goal === 'Strength' ? "5" : goal === 'Fat Loss' ? "15" : "10", weight: "0", done: false },
-          { id: Math.random().toString(), reps: goal === 'Strength' ? "5" : goal === 'Fat Loss' ? "15" : "10", weight: "0", done: false },
-          { id: Math.random().toString(), reps: goal === 'Strength' ? "5" : goal === 'Fat Loss' ? "15" : "10", weight: "0", done: false }
-        ]
-      }));
+        for (const session of history) {
+          const pastEx = session.exercises.find(e => e.name === ex.name);
+          if (pastEx && pastEx.sets.length > 0) {
+            lastWeight = Math.max(...pastEx.sets.map(s => parseFloat(s.weight) || 0));
+            lastReps = parseInt(pastEx.sets[0].reps) || lastReps;
+            lastSetsCount = pastEx.sets.length;
+            break;
+          }
+        }
+
+        // Apply Progressive Overload if R >= 70
+        let targetWeight = lastWeight;
+        if (readinessScore >= 70 && lastWeight > 0) {
+          targetWeight = lastWeight * 1.025;
+        }
+
+        // Scaling Volume by f(R)
+        // We modify sets and reps based on the recovery modifier
+        // f(R) = 0.5 + R/100. If R=100, f(R)=1.5. If R=0, f(R)=0.5.
+        const scaledSets = Math.max(1, Math.round(lastSetsCount * recoveryModifier));
+        const scaledReps = Math.max(1, Math.round(lastReps * (recoveryModifier >= 1 ? 1 : recoveryModifier)));
+
+        return {
+          id: Math.random().toString(),
+          name: ex.name,
+          sets: Array.from({ length: scaledSets }).map(() => ({
+            id: Math.random().toString(),
+            reps: scaledReps.toString(),
+            weight: targetWeight.toFixed(1),
+            done: false
+          }))
+        };
+      });
 
       setIsGenerating(false);
       setExercises(generatedWorkout);
@@ -60,6 +87,7 @@ export default function AIGeneratorModal() {
       router.push('/track');
     }, 1500);
   };
+
 
   const FatigueOption = ({ level, label, icon }: any) => {
     const isSelected = fatigue === level;
@@ -125,13 +153,19 @@ export default function AIGeneratorModal() {
             </LinearGradient>
 
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Current Fatigue Level</Text>
+              <View style={styles.readinessInfo}>
+                <Text style={styles.sectionTitle}>Current Readiness: {readinessScore}%</Text>
+                <View style={[styles.intensityPill, { backgroundColor: readinessScore >= 70 ? '#10b981' : readinessScore >= 40 ? '#f59e0b' : '#ef4444' }]}>
+                  <Text style={styles.intensityPillText}>{intensityCategory}</Text>
+                </View>
+              </View>
               <View style={styles.fatigueRow}>
                 <FatigueOption level={3} label="Fresh" icon={<Sparkles size={20} color={fatigue === 3 ? COLORS.background : COLORS.primary} />} />
                 <FatigueOption level={5} label="Normal" icon={<Activity size={20} color={fatigue === 5 ? COLORS.background : '#4ADE80'} />} />
                 <FatigueOption level={8} label="Exhausted" icon={<Droplets size={20} color={fatigue === 8 ? COLORS.background : '#F87171'} />} />
               </View>
             </View>
+
 
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Primary Goal</Text>
@@ -222,7 +256,22 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  readinessInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 16,
+  },
+  intensityPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  intensityPillText: {
+    color: COLORS.background,
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   fatigueRow: {
     flexDirection: 'row',

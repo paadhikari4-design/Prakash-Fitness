@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { useIsFocused } from '@react-navigation/native';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, Dimensions, ScrollView } from 'react-native';
 import { COLORS } from '@/constants/Colors';
 import { Activity, ShieldAlert, Zap, Target, RotateCcw, X, Info, ChevronDown } from 'lucide-react-native';
@@ -11,14 +12,18 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 type FeedbackLevel = 'good' | 'warn' | 'idle';
 
 export default function AICoachScreen() {
+  const isFocused = useIsFocused();
   const [status, setStatus] = useState<'idle' | 'loading' | 'running' | 'error' | 'denied'>('idle');
+
+  // Prevent background processing on web
+  if (Platform.OS === 'web' && !isFocused) return null;
   const [reps, setReps] = useState(0);
   const [feedback, setFeedback] = useState('Select exercise to start AI tracking');
   const [feedbackLevel, setFeedbackLevel] = useState<FeedbackLevel>('idle');
   const [selectedExercise, setSelectedExercise] = useState('Squat');
   const [fps, setFps] = useState(0);
   const [modelLoaded, setModelLoaded] = useState(false);
-  const [showExercises, setShowExercises] = useState(false);
+  const [showExercises, setShowExercises] = useState(true);
 
   const videoRef = useRef<any>(null);
   const canvasRef = useRef<any>(null);
@@ -27,7 +32,7 @@ export default function AICoachScreen() {
   const feedbackRef = useRef(feedback);
   const feedbackLevelRef = useRef<FeedbackLevel>(feedbackLevel);
   const fpsCountRef = useRef(0);
-  const fpsTimerRef = useRef(0);
+  const fpsTimerRef = useRef(Date.now());
 
   // States for counters
   const stateRef = useRef<any>({
@@ -52,7 +57,12 @@ export default function AICoachScreen() {
     }
   };
 
-  useEffect(() => () => stopAll(), []);
+  useEffect(() => {
+    if (!isFocused) {
+      stopAll();
+    }
+    return () => stopAll();
+  }, [isFocused]);
 
   const stopAll = () => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -73,8 +83,17 @@ export default function AICoachScreen() {
           try {
             const tf = (window as any).tf;
             const poseDetection = (window as any).poseDetection;
-            await tf.setBackend('webgl');
-            await tf.ready();
+            if (!tf || !poseDetection) { resolve(false); return; }
+            
+            try {
+              await tf.setBackend('webgl');
+              await tf.ready();
+            } catch (e) {
+              console.warn("WebGL backend failed, falling back to CPU", e);
+              await tf.setBackend('cpu');
+              await tf.ready();
+            }
+
             detectorRef.current = await poseDetection.createDetector(
               poseDetection.SupportedModels.MoveNet,
               { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING }
@@ -92,6 +111,12 @@ export default function AICoachScreen() {
     if (Platform.OS !== 'web') return;
     setStatus('loading');
     
+    if (!navigator?.mediaDevices?.getUserMedia) {
+      updateFeedback('Camera API not available in this browser', 'warn');
+      setStatus('error');
+      return;
+    }
+
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
@@ -116,6 +141,7 @@ export default function AICoachScreen() {
   };
 
   const runDetectionLoop = useCallback(async () => {
+    if (!isFocused) return;
     if (!detectorRef.current || !videoRef.current || !canvasRef.current) {
       rafRef.current = requestAnimationFrame(runDetectionLoop);
       return;
@@ -130,7 +156,11 @@ export default function AICoachScreen() {
     try {
       const poses = await detectorRef.current.estimatePoses(video);
       const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas?.getContext('2d');
+      if (!ctx) {
+        rafRef.current = requestAnimationFrame(runDetectionLoop);
+        return;
+      }
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -315,16 +345,23 @@ export default function AICoachScreen() {
               <Text style={styles.selectorLabel}>ACTIVE EXERCISE</Text>
               <Text style={styles.selectorValue}>{selectedExercise}</Text>
             </View>
-            <ChevronDown size={20} color={COLORS.textSecondary} />
+            <ChevronDown size={20} color={COLORS.textSecondary} style={{ transform: [{ rotate: showExercises ? '180deg' : '0deg' }] }} />
           </TouchableOpacity>
 
           <View style={styles.actionRow}>
-            <TouchableOpacity 
-              style={styles.circleAction} 
-              onPress={() => { setReps(0); }}
-            >
-              <RotateCcw size={20} color={COLORS.text} />
-            </TouchableOpacity>
+            {status === 'idle' ? (
+              <TouchableOpacity style={styles.startExerciseBtn} onPress={handleStart}>
+                <Zap size={20} color="#fff" />
+                <Text style={styles.startExerciseText}>START</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity 
+                style={styles.circleAction} 
+                onPress={() => { setReps(0); }}
+              >
+                <RotateCcw size={20} color={COLORS.text} />
+              </TouchableOpacity>
+            )}
             {status === 'running' && (
               <TouchableOpacity 
                 style={[styles.circleAction, { backgroundColor: '#ef4444' }]} 
@@ -336,23 +373,27 @@ export default function AICoachScreen() {
           </View>
         </View>
 
+        {/* Persistent/Toggled Exercise List */}
         {showExercises && (
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false} 
-            style={styles.exList}
-            contentContainerStyle={{ paddingBottom: 10 }}
-          >
-            {EXERCISES.map(ex => (
-              <TouchableOpacity
-                key={ex}
-                style={[styles.exPill, selectedExercise === ex && styles.exPillActive]}
-                onPress={() => { setSelectedExercise(ex); setShowExercises(false); }}
-              >
-                <Text style={[styles.exPillText, selectedExercise === ex && styles.exPillTextActive]}>{ex}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          <View style={styles.exListContainer}>
+            <Text style={styles.exListTitle}>Select Movement</Text>
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false} 
+              style={styles.exList}
+              contentContainerStyle={styles.exListContent}
+            >
+              {EXERCISES.map(ex => (
+                <TouchableOpacity
+                  key={ex}
+                  style={[styles.exPill, selectedExercise === ex && styles.exPillActive]}
+                  onPress={() => { setSelectedExercise(ex); }}
+                >
+                  <Text style={[styles.exPillText, selectedExercise === ex && styles.exPillTextActive]}>{ex}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
         )}
       </View>
     </View>
@@ -385,12 +426,41 @@ const styles = StyleSheet.create({
   selectorValue: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
   actionRow: { flexDirection: 'row', gap: 10 },
   circleAction: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#2a2a2a', alignItems: 'center', justifyContent: 'center' },
-  exList: { gap: 10 },
-  exPill: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, backgroundColor: '#2a2a2a', marginRight: 8, borderWidth: 1, borderColor: '#333' },
+  exListContainer: { marginTop: 15, paddingBottom: 15 },
+  exList: { flexGrow: 0, minHeight: 60 },
+  exListContent: { paddingHorizontal: 5, alignItems: 'center', paddingVertical: 5 },
+  exPill: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 15, backgroundColor: '#2a2a2a', marginRight: 15, borderWidth: 1, borderColor: '#333', minWidth: 110, alignItems: 'center', justifyContent: 'center' },
   exPillActive: { backgroundColor: COLORS.primaryDim, borderColor: COLORS.primary },
-  exPillText: { color: COLORS.textSecondary, fontSize: 13, fontWeight: '600' },
+  exPillText: { color: COLORS.textSecondary, fontSize: 14, fontWeight: 'bold' },
   exPillTextActive: { color: COLORS.primary },
+  exListTitle: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    fontWeight: 'bold',
+    marginBottom: 12,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+  },
   errorOverlay: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40, gap: 15 },
   errorText: { color: '#fff', fontSize: 20, fontWeight: '900', letterSpacing: 1 },
   errorSub: { color: COLORS.textSecondary, fontSize: 14, textAlign: 'center', lineHeight: 22 },
+  startExerciseBtn: {
+    backgroundColor: COLORS.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 22,
+    paddingVertical: 12,
+    borderRadius: 14,
+    gap: 8,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  startExerciseText: {
+    color: '#fff',
+    fontWeight: '800',
+    fontSize: 15,
+  },
 });

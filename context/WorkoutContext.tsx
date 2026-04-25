@@ -6,6 +6,12 @@ import {
   collection, query, onSnapshot, addDoc, 
   serverTimestamp, orderBy, doc, setDoc, updateDoc 
 } from 'firebase/firestore';
+import { 
+  calculateRecoveryScore, 
+  calculateRecoveryModifier, 
+  getIntensityCategory,
+  RecoveryFactors
+} from '@/services/ai-engine';
 
 export type WorkoutSet = {
   id: string;
@@ -54,6 +60,36 @@ export type UserProfile = {
   displayName: string;
   joinedDate: string;
   totalWorkouts: number;
+  lifestyle?: string;
+  fitnessLevel?: string;
+  primaryGoal?: string;
+  dnaLocked?: boolean;
+  goals?: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+    water: number; // glasses
+    sleep: number; // hours
+    steps: number;
+  };
+};
+
+export type DailyHabits = {
+  id: string;
+  date: string;
+  waterGlasses: number;
+  sleepHours: number;
+  steps: number;
+};
+
+export type NutritionLog = {
+  id: string;
+  date: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
 };
 
 type WorkoutContextType = {
@@ -84,9 +120,19 @@ type WorkoutContextType = {
   progressPhotos: ProgressPhoto[];
   addProgressPhoto: (photo: ProgressPhoto) => void;
 
+  // Habits & Nutrition
+  habits: DailyHabits | null;
+  updateHabits: (habits: Partial<DailyHabits>) => void;
+  nutrition: NutritionLog | null;
+  updateNutrition: (nutrition: Partial<NutritionLog>) => void;
+
   userProfile: UserProfile | null;
   updateDisplayName: (name: string) => Promise<void>;
+  updateProfile: (profile: Partial<UserProfile>) => Promise<void>;
   getAIGuidance: () => { muscle: string; recommendation: string; reason: string } | null;
+  readinessScore: number;
+  recoveryModifier: number;
+  intensityCategory: string;
 };
 
 const WorkoutContext = createContext<WorkoutContextType | undefined>(undefined);
@@ -111,6 +157,21 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   // Profile state
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
+  // Habits & Nutrition state
+  const [habits, setHabits] = useState<DailyHabits | null>(null);
+  const [nutrition, setNutrition] = useState<NutritionLog | null>(null);
+
+  const readinessScore = calculateRecoveryScore({
+    waterGlasses: habits?.waterGlasses || 0,
+    sleepHours: habits?.sleepHours || 0,
+    steps: habits?.steps || 0
+  });
+
+  const recoveryModifier = calculateRecoveryModifier(readinessScore);
+  const intensityCategory = getIntensityCategory(readinessScore);
+
+  const today = new Date().toISOString().split('T')[0];
+
   // Auth state
   const [userId, setUserId] = useState<string | null>(null);
 
@@ -120,7 +181,9 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       if (user) {
         setUserId(user.uid);
       } else {
-        signInAnonymously(auth);
+        signInAnonymously(auth).catch((err) => {
+          console.error("Firebase Auth initialization failed. Please enable Anonymous Auth in the Firebase Console.", err);
+        });
       }
     });
 
@@ -130,39 +193,41 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     return unsubscribe;
   }, []);
 
-  // Sync History
+  // Sync Data
   useEffect(() => {
     if (!userId) return;
-    const q = query(
-      collection(db, 'users', userId, 'workouts'),
-      orderBy('createdAt', 'desc')
-    );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as WorkoutSession[];
-      setHistory(data);
-    });
-    return unsubscribe;
-  }, [userId]);
 
-  // Sync Body Entries
-  useEffect(() => {
-    if (!userId) return;
-    const q = query(
-      collection(db, 'users', userId, 'body_entries'),
-      orderBy('createdAt', 'desc')
-    );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as BodyEntry[];
-      setBodyEntries(data);
+    const unsubHistory = onSnapshot(query(collection(db, 'users', userId, 'workouts'), orderBy('createdAt', 'desc')), (snapshot) => {
+      setHistory(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as WorkoutSession)));
     });
-    return unsubscribe;
-  }, [userId]);
+
+    const unsubBody = onSnapshot(query(collection(db, 'users', userId, 'body'), orderBy('date', 'desc')), (snapshot) => {
+      setBodyEntries(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BodyEntry)));
+    });
+
+    const unsubHabits = onSnapshot(doc(db, 'users', userId, 'habits', today), (snapshot) => {
+      if (snapshot.exists()) {
+        setHabits({ id: snapshot.id, ...snapshot.data() } as DailyHabits);
+      } else {
+        setHabits({ id: today, date: today, waterGlasses: 0, sleepHours: 0, steps: 0 });
+      }
+    });
+
+    const unsubNutrition = onSnapshot(doc(db, 'users', userId, 'nutrition', today), (snapshot) => {
+      if (snapshot.exists()) {
+        setNutrition({ id: snapshot.id, ...snapshot.data() } as NutritionLog);
+      } else {
+        setNutrition({ id: today, date: today, calories: 0, protein: 0, carbs: 0, fat: 0 });
+      }
+    });
+
+    return () => {
+      unsubHistory();
+      unsubBody();
+      unsubHabits();
+      unsubNutrition();
+    };
+  }, [userId, today]);
 
   // Sync User Profile
   useEffect(() => {
@@ -170,9 +235,26 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     const docRef = doc(db, 'users', userId, 'profile', 'main');
     const unsubscribe = onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
-        setUserProfile(docSnap.data() as UserProfile);
+        const profileData = docSnap.data();
+        setUserProfile({
+          displayName: profileData.displayName || 'Athlete',
+          joinedDate: profileData.joinedDate || new Date().toLocaleDateString(),
+          totalWorkouts: profileData.totalWorkouts || 0,
+          lifestyle: profileData.lifestyle || '',
+          fitnessLevel: profileData.fitnessLevel || '',
+          primaryGoal: profileData.primaryGoal || '',
+          dnaLocked: profileData.dnaLocked || false,
+          goals: profileData.goals || {
+            calories: 2500,
+            protein: 180,
+            carbs: 250,
+            fat: 70,
+            water: 8,
+            sleep: 8,
+            steps: 10000
+          }
+        });
       } else {
-        // Initialize profile if not found
         const initialProfile: UserProfile = {
           displayName: 'New Athlete',
           joinedDate: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
@@ -251,7 +333,7 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         setWorkoutTime((prev) => prev + 1);
       }, 1000);
     } else {
-      setWorkoutTime(0); // Reset if exercises are cleared manually without finish
+      setWorkoutTime(0);
     }
     return () => clearInterval(timer);
   }, [exercises.length]);
@@ -265,7 +347,6 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       }, 1000);
     } else if (timeLeft === 0 && isTimerActive) {
       setIsTimerActive(false);
-      // Removed alert here, wait to trigger it in UI or leave it silent globally to prevent annoying popups everywhere
       clearInterval(interval);
     }
     return () => clearInterval(interval);
@@ -281,7 +362,6 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       setExercises([]);
       setWorkoutTime(0);
 
-      // Superpower: Push Notification on Completion
       NotificationService.sendLocalNotification(
         "Workout Logged! 🔥",
         `Great job on "${session.title}". Vol: ${session.volume}`
@@ -315,14 +395,39 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const updateDisplayName = async (name: string) => {
+  const updateProfile = async (updates: Partial<UserProfile>) => {
     if (!userId) return;
     try {
       const docRef = doc(db, 'users', userId, 'profile', 'main');
-      await setDoc(docRef, { displayName: name }, { merge: true });
+      await setDoc(docRef, updates, { merge: true });
     } catch (e) {
-      console.error("Error updating display name: ", e);
+      console.error('Error updating profile:', e);
     }
+  };
+
+  const updateDisplayName = async (name: string) => {
+    await updateProfile({ displayName: name });
+  };
+
+  const updateHabits = async (newHabits: Partial<DailyHabits>) => {
+    if (!auth.currentUser) return;
+    const habitsRef = doc(db, 'users', auth.currentUser.uid, 'habits', today);
+    await setDoc(habitsRef, { ...newHabits, date: today }, { merge: true });
+  };
+
+  const updateNutrition = async (newNutrition: Partial<NutritionLog>) => {
+    if (!auth.currentUser) return;
+    const nutritionRef = doc(db, 'users', auth.currentUser.uid, 'nutrition', today);
+    
+    const updated = {
+      calories: (nutrition?.calories || 0) + (newNutrition.calories || 0),
+      protein: (nutrition?.protein || 0) + (newNutrition.protein || 0),
+      carbs: (nutrition?.carbs || 0) + (newNutrition.carbs || 0),
+      fat: (nutrition?.fat || 0) + (newNutrition.fat || 0),
+      date: today
+    };
+
+    await setDoc(nutritionRef, updated, { merge: true });
   };
 
   const getAIGuidance = () => {
@@ -353,7 +458,6 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       'Chest': 0, 'Legs': 0, 'Back/Legs': 0, 'Shoulders': 0, 'Arms': 0, 'Core': 0
     };
 
-    // Analyze last 10 workouts
     history.slice(0, 10).forEach(session => {
       session.exercises.forEach(ex => {
         const muscle = muscleMap[ex.name];
@@ -363,7 +467,6 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
       });
     });
 
-    // Find min
     let minMuscle = 'Chest';
     let minCount = Infinity;
     Object.keys(targetCounts).forEach(m => {
@@ -388,8 +491,17 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
         routines,
         timeLeft, setTimeLeft, initialTime, setInitialTime, isTimerActive, setIsTimerActive,
         bodyEntries, addBodyEntry, progressPhotos, addProgressPhoto,
-        userProfile, updateDisplayName,
-        getAIGuidance
+        userProfile,
+        updateDisplayName,
+        updateProfile,
+        getAIGuidance,
+        habits,
+        updateHabits,
+        nutrition,
+        updateNutrition,
+        readinessScore,
+        recoveryModifier,
+        intensityCategory
       }}
     >
       {children}

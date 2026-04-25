@@ -8,13 +8,10 @@ import { Trophy, Users, Zap, Flame, Target, Star, Award, ChevronRight, CheckCirc
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 
-// ── Mock friends leaderboard data ────────────────────────────────
-const MOCK_FRIENDS = [
-  { rank: 1, name: 'Alex R.', workouts: 28, volume: '142k', streak: 14, you: false },
-  { rank: 2, name: 'Jordan B.', workouts: 24, volume: '128k', streak: 10, you: false },
-  { rank: 3, name: 'You', workouts: 0, volume: '0k', streak: 0, you: true },
-  { rank: 4, name: 'Sam T.', workouts: 18, volume: '91k', streak: 5, you: false },
-  { rank: 5, name: 'Casey M.', workouts: 12, volume: '67k', streak: 3, you: false },
+// ── Mock friends leaderboard data (Curated circle of friends) ─────────────────
+const MOCK_FRIENDS: any[] = [
+  { rank: 0, name: 'Alex Trainer', workouts: 18, volume: '112k', streak: 12, you: false },
+  { rank: 0, name: 'Sarah G.', workouts: 14, volume: '85k', streak: 7, you: false },
 ];
 
 const CHALLENGES = [
@@ -54,12 +51,11 @@ type LeaderboardMetric = 'workouts' | 'volume' | 'streak';
 
 export default function SocialScreen() {
   const { history, userProfile } = useWorkout();
-  const [activeSocialTab, setActiveSocialTab] = useState<'circle' | 'global'>('circle');
   const [metric, setMetric] = useState<LeaderboardMetric>('workouts');
   const [joinedChallenges, setJoinedChallenges] = useState<string[]>([]);
   
-  // Friends State (Simulated)
-  const [friends, setFriends] = useState<any[]>([]);
+  // Friends State (Initialize with simulated circle)
+  const [friends, setFriends] = useState<any[]>(MOCK_FRIENDS);
   const [showAddFriend, setShowAddFriend] = useState(false);
   const [friendIdInput, setFriendIdInput] = useState('');
   const [isAdding, setIsAdding] = useState(false);
@@ -69,7 +65,7 @@ export default function SocialScreen() {
   const myVolume = history.reduce((sum, h) => sum + (parseInt(h.volume.replace(/[^0-9]/g, '')) || 0), 0);
   const myStreak = Math.min(Math.floor(myWorkouts / 1.5) + 1, 35);
 
-  const activeLeaderboardSource = activeSocialTab === 'circle' ? [ ...friends, { rank: 0, name: userProfile?.displayName || 'You', workouts: 0, volume: '0k', streak: 0, you: true } ] : MOCK_FRIENDS;
+  const activeLeaderboardSource = [ ...friends, { rank: 0, name: userProfile?.displayName || 'You', workouts: 0, volume: '0k', streak: 0, you: true } ];
 
   const leaderboard = activeLeaderboardSource.map(f =>
     f.you
@@ -128,27 +124,11 @@ export default function SocialScreen() {
         <Trophy size={36} color="#f59e0b" />
         <View style={{ flex: 1, marginLeft: 14 }}>
           <Text style={styles.heroTitle}>Competition Mode</Text>
-          <Text style={styles.heroSub}>{activeSocialTab === 'circle' ? 'You vs. Your Friends' : 'Global Athlete Leaderboard'}</Text>
+          <Text style={styles.heroSub}>Compete with your friends and stay motivated</Text>
         </View>
       </LinearGradient>
 
-      {/* Tab Switcher */}
-      <View style={styles.tabRow}>
-        <TouchableOpacity 
-          style={[styles.socialTab, activeSocialTab === 'circle' && styles.socialTabActive]} 
-          onPress={() => setActiveSocialTab('circle')}
-        >
-          <Users size={16} color={activeSocialTab === 'circle' ? COLORS.primary : COLORS.textSecondary} />
-          <Text style={[styles.socialTabText, activeSocialTab === 'circle' && styles.socialTabTextActive]}>My Circle</Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.socialTab, activeSocialTab === 'global' && styles.socialTabActive]} 
-          onPress={() => setActiveSocialTab('global')}
-        >
-          <Target size={16} color={activeSocialTab === 'global' ? COLORS.primary : COLORS.textSecondary} />
-          <Text style={[styles.socialTabText, activeSocialTab === 'global' && styles.socialTabTextActive]}>Global</Text>
-        </TouchableOpacity>
-      </View>
+
 
       {/* Leaderboard */}
       <Text style={styles.sectionTitle}>🏆 Leaderboard</Text>
@@ -167,7 +147,7 @@ export default function SocialScreen() {
       </View>
 
       <View style={styles.leaderboardCard}>
-        {leaderboard.length > 1 || activeSocialTab === 'global' ? (
+        {leaderboard.length > 1 ? (
           leaderboard.map((friend, idx) => (
             <View
               key={friend.name + friend.rank}

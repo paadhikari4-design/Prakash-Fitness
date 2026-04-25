@@ -39,13 +39,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 export default function DashboardScreen() {
   const router = useRouter();
   const { 
-    history, exercises, workoutTime, timeLeft, isTimerActive, bodyEntries, userProfile, getAIGuidance 
+    history, exercises, workoutTime, timeLeft, isTimerActive, bodyEntries, userProfile, 
+    getAIGuidance, habits, updateHabits, nutrition,
+    readinessScore, intensityCategory
   } = useWorkout();
 
-  // ── Habit Tracker State ──────────────────────────────────────────
-  const [waterGlasses, setWaterGlasses] = useState(0);
-  const [sleepHours, setSleepHours] = useState(0);
-  const [steps, setSteps] = useState(0);
+  // ── Habit Tracker State (Delegated to Context) ────────────────────
   const [isOffline, setIsOffline] = useState(false);
   const [notificationStatus, setNotificationStatus] = useState<string | null>(null);
 
@@ -99,24 +98,17 @@ export default function DashboardScreen() {
   const healthAlert = detectOvertraining();
 
   // ── Readiness Score ───────────────────────────────────────────────
-  const calculateReadiness = () => {
-    let trainingScore = 60;
-    const recentLogs = history.slice(0, 5).map(h => h.date);
-    const uniqueDays = new Set(recentLogs);
-    if (uniqueDays.size >= 4) trainingScore = 20; // Overtraining risk
-    else if (uniqueDays.size === 3) trainingScore = 40; // Moderate fatigue
-    
-    const sleepFactor = Math.min(sleepHours, 8) / 8; 
-    const waterFactor = Math.min(waterGlasses, 8) / 8; 
-    
-    return Math.round(trainingScore + (sleepFactor * 20) + (waterFactor * 20) || 50); // Fallback to 50
-  };
-  
-  const readinessScore = calculateReadiness();
   let readinessColor = '#10b981'; // green/optimal
   let readinessText = 'Optimal to Train';
-  if (readinessScore < 70) { readinessColor = '#f59e0b'; readinessText = 'Moderate Fatigue'; }
-  if (readinessScore < 50) { readinessColor = '#ef4444'; readinessText = 'High CNS Fatigue. Consider Rest.'; }
+  
+  if (intensityCategory === 'MODERATE') {
+    readinessColor = '#f59e0b';
+    readinessText = 'Moderate Fatigue';
+  } else if (intensityCategory === 'REST DAY') {
+    readinessColor = '#ef4444';
+    readinessText = 'High CNS Fatigue. Consider Rest.';
+  }
+
 
   const Widget = ({ title, icon, value, subtext, onPress, primary = false }: any) => {
     const handlePress = () => {
@@ -245,19 +237,19 @@ export default function DashboardScreen() {
         <TouchableOpacity 
           style={{ marginBottom: 24 }} 
           activeOpacity={0.8}
-          onPress={() => router.push('/modal')}
+          onPress={() => router.push('/timer-modal')}
         >
           <LinearGradient 
-            colors={['#10b981', '#059669']} 
+            colors={[COLORS.primary, '#6d28d9']} 
             style={styles.aiGeneratorBtn}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
           >
             <View style={styles.aiGeneratorContent}>
-              <Activity size={24} color={COLORS.background} />
+              <TimerIcon size={24} color={COLORS.background} />
               <View style={{ marginLeft: 12, flex: 1 }}>
-                <Text style={styles.aiGeneratorTitle}>AI Nutrition Scanner</Text>
-                <Text style={styles.aiGeneratorSub}>Upload food for macro estimation</Text>
+                <Text style={styles.aiGeneratorTitle}>Active Rest Timer</Text>
+                <Text style={styles.aiGeneratorSub}>Manage intervals and recovery</Text>
               </View>
               <ChevronRight size={20} color={'rgba(255,255,255,0.7)'} />
             </View>
@@ -281,11 +273,11 @@ export default function DashboardScreen() {
             onPress={() => router.push('/history')}
           />
           <Widget 
-            title="Quick Timer"
-            icon={<TimerIcon size={24} color={COLORS.primary} />}
-            value={`${Math.floor(timeLeft / 60).toString().padStart(2, '0')}:${(timeLeft % 60).toString().padStart(2, '0')}`}
-            subtext={isTimerActive ? "Running..." : "Tap to set timer"}
-            onPress={() => router.push('/timer')}
+            title="AI Scanner"
+            icon={<Camera size={24} color={COLORS.primary} />}
+            value="Vision AI"
+            subtext="Scan meal macros"
+            onPress={() => router.push('/(tabs)/scanner')}
           />
           <Widget 
             title="Exercise Library"
@@ -361,7 +353,7 @@ export default function DashboardScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.nutritionTitle}>Daily Nutrition</Text>
-                <Text style={styles.nutritionSub}>1,840 / 2,500 kcal consumed</Text>
+                <Text style={styles.nutritionSub}>{nutrition?.calories || 0} / {userProfile?.goals?.calories || 2500} kcal consumed</Text>
               </View>
               <ChevronRight size={18} color={COLORS.textSecondary} />
             </View>
@@ -369,20 +361,20 @@ export default function DashboardScreen() {
             <View style={styles.macroRowSmall}>
               <View style={styles.macroPillSmall}>
                 <Text style={[styles.macroPillLabel, { color: '#ef4444' }]}>P</Text>
-                <Text style={styles.macroPillValue}>145g</Text>
+                <Text style={styles.macroPillValue}>{nutrition?.protein || 0}g</Text>
               </View>
               <View style={styles.macroPillSmall}>
                 <Text style={[styles.macroPillLabel, { color: '#f59e0b' }]}>C</Text>
-                <Text style={styles.macroPillValue}>210g</Text>
+                <Text style={styles.macroPillValue}>{nutrition?.carbs || 0}g</Text>
               </View>
               <View style={styles.macroPillSmall}>
                 <Text style={[styles.macroPillLabel, { color: '#10b981' }]}>F</Text>
-                <Text style={styles.macroPillValue}>52g</Text>
+                <Text style={styles.macroPillValue}>{nutrition?.fat || 0}g</Text>
               </View>
             </View>
 
             <View style={styles.nutritionProgressBg}>
-              <View style={[styles.nutritionProgressFill, { width: '73.6%' }]} />
+              <View style={[styles.nutritionProgressFill, { width: `${Math.min(((nutrition?.calories || 0) / (userProfile?.goals?.calories || 2500)) * 100, 100) || 0}%` }]} />
             </View>
           </LinearGradient>
         </TouchableOpacity>
@@ -398,15 +390,15 @@ export default function DashboardScreen() {
           <View style={styles.habitGrid}>
             <View style={styles.habitCard}>
               <Droplets size={22} color="#3b82f6" />
-              <Text style={styles.habitValue}>{waterGlasses}/8</Text>
+              <Text style={styles.habitValue}>{habits?.waterGlasses || 0}/8</Text>
               <Text style={styles.habitLabel}>Glasses</Text>
               <View style={styles.habitBtns}>
                 <TouchableOpacity style={styles.habitBtn}
-                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setWaterGlasses(Math.max(0, waterGlasses - 1)); }}>
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); updateHabits({ waterGlasses: Math.max(0, (habits?.waterGlasses || 0) - 1) }); }}>
                   <Text style={styles.habitBtnText}>-</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.habitBtn, styles.habitBtnAdd]}
-                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setWaterGlasses(Math.min(8, waterGlasses + 1)); }}>
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); updateHabits({ waterGlasses: Math.min(8, (habits?.waterGlasses || 0) + 1) }); }}>
                   <Text style={[styles.habitBtnText, { color: COLORS.background }]}>+</Text>
                 </TouchableOpacity>
               </View>
@@ -414,15 +406,15 @@ export default function DashboardScreen() {
 
             <View style={styles.habitCard}>
               <Moon size={22} color="#8b5cf6" />
-              <Text style={styles.habitValue}>{sleepHours}h</Text>
+              <Text style={styles.habitValue}>{habits?.sleepHours || 0}h</Text>
               <Text style={styles.habitLabel}>Sleep</Text>
               <View style={styles.habitBtns}>
                 <TouchableOpacity style={styles.habitBtn}
-                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSleepHours(Math.max(0, sleepHours - 1)); }}>
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); updateHabits({ sleepHours: Math.max(0, (habits?.sleepHours || 0) - 1) }); }}>
                   <Text style={styles.habitBtnText}>-</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.habitBtn, styles.habitBtnAdd]}
-                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSleepHours(Math.min(12, sleepHours + 1)); }}>
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); updateHabits({ sleepHours: Math.min(12, (habits?.sleepHours || 0) + 1) }); }}>
                   <Text style={[styles.habitBtnText, { color: COLORS.background }]}>+</Text>
                 </TouchableOpacity>
               </View>
@@ -430,15 +422,15 @@ export default function DashboardScreen() {
 
             <View style={styles.habitCard}>
               <Footprints size={22} color="#10b981" />
-              <Text style={styles.habitValue}>{(steps / 1000).toFixed(1)}k</Text>
+              <Text style={styles.habitValue}>{((habits?.steps || 0) / 1000).toFixed(1)}k</Text>
               <Text style={styles.habitLabel}>Steps</Text>
               <View style={styles.habitBtns}>
                 <TouchableOpacity style={styles.habitBtn}
-                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSteps(Math.max(0, steps - 1000)); }}>
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); updateHabits({ steps: Math.max(0, (habits?.steps || 0) - 1000) }); }}>
                   <Text style={styles.habitBtnText}>-</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.habitBtn, styles.habitBtnAdd]}
-                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSteps(Math.min(20000, steps + 1000)); }}>
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); updateHabits({ steps: Math.min(20000, (habits?.steps || 0) + 1000) }); }}>
                   <Text style={[styles.habitBtnText, { color: COLORS.background }]}>+</Text>
                 </TouchableOpacity>
               </View>
@@ -459,7 +451,7 @@ export default function DashboardScreen() {
           <View style={styles.card}>
             <Text style={styles.cardTitle}>{Math.min(history.length, 5)} / 5 Workouts</Text>
             <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: `${Math.min(history.length / 5 * 100, 100)}%` as any }]} />
+              <View style={[styles.progressFill, { width: `${Math.min((history?.length || 0) / 5 * 100, 100)}%` as any }]} />
             </View>
           </View>
         </View>
@@ -469,7 +461,7 @@ export default function DashboardScreen() {
         style={styles.hyperScanFab} 
         onPress={() => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          router.push('/modal');
+          router.push('/(tabs)/scanner');
         }}
         activeOpacity={0.9}
       >
@@ -494,7 +486,7 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    paddingBottom: 40,
+    paddingBottom: 180, // Enhanced clearance for the absolute-positioned HyperScan FAB
   },
   greeting: {
     fontSize: 16,
