@@ -56,9 +56,11 @@ export default function DashboardScreen() {
       window.addEventListener('online', handleOnline);
       window.addEventListener('offline', handleOffline);
       setIsOffline(!window.navigator.onLine);
-      
-      setNotificationStatus(Notification.permission);
-
+      if ('Notification' in window) {
+        setNotificationStatus(Notification.permission);
+      } else {
+        setNotificationStatus('denied');
+      }
       return () => {
         window.removeEventListener('online', handleOnline);
         window.removeEventListener('offline', handleOffline);
