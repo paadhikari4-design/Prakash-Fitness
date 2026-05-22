@@ -1,19 +1,18 @@
-# 🚀 Prakash Fitness - Project Ecosystem
+# 🚀 Prakash Fitness
 
-This document tracks the current production deployments and repository links for the **Prakash Fitness** platform.
+AI-powered gym tracking PWA built with Expo, Firebase & TensorFlow.js.
 
-### 📦 Repository & Version Control
-- **GitHub**: [Prakash-Fitness Repository](https://github.com/paadhikari4-design/Prakash-Fitness)
-- **Status**: Production Ready - Final Polish & Bug Fixes completed.
+### 📦 Repository
+**GitHub:** https://github.com/paadhikari4-design/Prakash-Fitness
 
 ### 🌐 Live Deployments
-| Platform | Environment | URL |
-| :--- | :--- | :--- |
-| **Vercel** | Web / SSR | [workout-app-rose-theta.vercel.app](https://workout-app-rose-theta.vercel.app) |
-| **Firebase Hosting** | PWA / Mobile | [ironpulse-app-2026.web.app](https://ironpulse-app-2026.web.app) |
+| Platform | URL |
+| :--- | :--- |
+| **Vercel** (Web) | https://workout-app-rose-theta.vercel.app |
+| **Firebase** (PWA) | https://ironpulse-app-2026.web.app |
 
-### 🛰 App Access
-- **QR Code Path**: `/pwa-qr.png` (Scan to open directly on iOS/Android)
+### 📱 QR Code
+Scan `/pwa-qr.png` to open the app on iOS or Android.
 
 ---
-**Last Updated**: 2026-05-22 (Final Polish & Bug Fixes)
+**Last Updated:** 2026-05-22
