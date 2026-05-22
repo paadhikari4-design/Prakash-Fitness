@@ -62,36 +62,36 @@ export default function ProfileModal() {
 
   const handleSave = async () => {
     if (!nameInput.trim()) {
-      Alert.alert('Invalid Name', 'Please enter a display name.');
+      if (Platform.OS === 'web') window.alert('Please enter a display name.');
+      else Alert.alert('Invalid Name', 'Please enter a display name.');
       return;
     }
     setIsSaving(true);
     await updateProfile({ displayName: nameInput.trim() });
     setIsSaving(false);
-    Alert.alert('Profile Updated', 'Your changes have been saved.');
+    if (Platform.OS === 'web') window.alert('Your changes have been saved!');
+    else Alert.alert('Profile Updated', 'Your changes have been saved.');
   };
 
-  const handleLogout = () => {
-    Alert.alert(
-      "Logout",
-      "Are you sure you want to log out?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Logout",
-          style: "destructive",
-          onPress: async () => {
-            await auth.signOut();
-            router.replace('/');
-          }
-        }
-      ]
-    );
+  const handleLogout = async () => {
+    const confirmed = Platform.OS === 'web'
+      ? window.confirm('Are you sure you want to log out?')
+      : await new Promise<boolean>((resolve) => {
+          Alert.alert('Logout', 'Are you sure you want to log out?', [
+            { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+            { text: 'Logout', style: 'destructive', onPress: () => resolve(true) },
+          ]);
+        });
+    if (confirmed) {
+      await auth.signOut();
+      router.replace('/');
+    }
   };
 
   const handleLockDNA = async () => {
     if (!selectedLifestyle || !selectedLevel || !selectedGoal) {
-      Alert.alert('Incomplete Profile', 'Select all three DNA options to lock your profile.');
+      if (Platform.OS === 'web') window.alert('Select all three DNA options to lock your profile.');
+      else Alert.alert('Incomplete Profile', 'Select all three DNA options to lock your profile.');
       return;
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -102,7 +102,8 @@ export default function ProfileModal() {
       dnaLocked: true
     });
     setDnaLocked(true);
-    Alert.alert('🧬 Fitness DNA Locked!', 'Your IronPulse experience is now fully personalized.');
+    if (Platform.OS === 'web') window.alert('🧬 Fitness DNA Locked! Your IronPulse experience is now fully personalized.');
+    else Alert.alert('🧬 Fitness DNA Locked!', 'Your IronPulse experience is now fully personalized.');
   };
 
   const insight = getDNAInsight(selectedLifestyle, selectedLevel, selectedGoal);

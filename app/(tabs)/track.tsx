@@ -162,7 +162,11 @@ export default function TrackScreen() {
 
   const finishWorkout = () => {
     if (exercises.length === 0) {
-      Alert.alert('Empty Workout', 'Add some exercises before finishing!');
+      if (Platform.OS === 'web') {
+        window.alert('Add some exercises before finishing!');
+      } else {
+        Alert.alert('Empty Workout', 'Add some exercises before finishing!');
+      }
       return;
     }
 
@@ -182,20 +186,23 @@ export default function TrackScreen() {
       duration: formatTime(workoutTime),
       volume: `${totalVolume.toLocaleString()} lbs`,
       prs: 0,
-      exercises: [...exercises], // Save current exercises with their final set data
+      exercises: [...exercises],
     };
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert(
-      'Finish Workout', 
-      'Great job! Your workout has been saved.',
-      [{ 
-        text: 'OK', 
-        onPress: () => {
-          addWorkout(session);
-        }
-      }]
-    );
+
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm('Great job! Save your workout to history?');
+      if (confirmed) {
+        addWorkout(session);
+      }
+    } else {
+      Alert.alert(
+        'Finish Workout',
+        'Great job! Your workout has been saved.',
+        [{ text: 'OK', onPress: () => addWorkout(session) }]
+      );
+    }
   };
 
   return (

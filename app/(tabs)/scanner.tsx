@@ -27,9 +27,7 @@ export default function NutritionScanner() {
   const isFocused = useIsFocused();
   const { updateNutrition } = useWorkout();
 
-  // On web, if not focused, don't render to prevent background bleed
-  if (Platform.OS === 'web' && !isFocused) return null;
-
+  // ── All hooks MUST be called before any conditional return ──────────
   const [permission, requestPermission] = useCameraPermissions();
   const [isCapturing, setIsCapturing] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
@@ -78,6 +76,9 @@ export default function NutritionScanner() {
       return () => clearInterval(interval);
     }
   }, [isCapturing, isScanning]);
+
+  // On web, if not focused, render nothing (after all hooks have run)
+  if (Platform.OS === 'web' && !isFocused) return null;
 
   const startScanning = async () => {
     if (!permission?.granted) {

@@ -13,10 +13,9 @@ type FeedbackLevel = 'good' | 'warn' | 'idle';
 
 export default function AICoachScreen() {
   const isFocused = useIsFocused();
-  const [status, setStatus] = useState<'idle' | 'loading' | 'running' | 'error' | 'denied'>('idle');
 
-  // Prevent background processing on web
-  if (Platform.OS === 'web' && !isFocused) return null;
+  // ── All hooks MUST be called before any conditional return ──────────
+  const [status, setStatus] = useState<'idle' | 'loading' | 'running' | 'error' | 'denied'>('idle');
   const [reps, setReps] = useState(0);
   const [feedback, setFeedback] = useState('Select exercise to start AI tracking');
   const [feedbackLevel, setFeedbackLevel] = useState<FeedbackLevel>('idle');
@@ -63,6 +62,9 @@ export default function AICoachScreen() {
     }
     return () => stopAll();
   }, [isFocused]);
+
+  // Prevent background processing on web (after all hooks have run)
+  if (Platform.OS === 'web' && !isFocused) return null;
 
   const stopAll = () => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -273,7 +275,7 @@ export default function AICoachScreen() {
 
   return (
     <View style={styles.container}>
-      {/* ── Background Video Layer ── */}
+      {/* ── Video / Camera Area (fixed height) ── */}
       <View style={styles.visualContainer}>
         {React.createElement('video', {
           ref: videoRef,
@@ -313,7 +315,7 @@ export default function AICoachScreen() {
           </View>
         )}
 
-        {/* Loading / Idle Overlays */}
+        {/* Idle / Loading overlay */}
         {(status === 'idle' || status === 'loading') && (
           <View style={[styles.statusOverlay, { backgroundColor: '#000000AA' }]}>
             {status === 'loading' ? (
@@ -334,20 +336,19 @@ export default function AICoachScreen() {
         )}
       </View>
 
-      {/* ── Controls Bottom Layer ── */}
-      <View style={styles.controlsLayer}>
+      {/* ── Controls Panel (scrollable vertically so exercises are always reachable) ── */}
+      <ScrollView
+        style={styles.controlsLayer}
+        contentContainerStyle={styles.controlsContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Header row: active exercise name + action buttons */}
         <View style={styles.controlsHeader}>
-          <TouchableOpacity 
-            style={styles.selectorBtn} 
-            onPress={() => setShowExercises(!showExercises)}
-          >
-            <View>
-              <Text style={styles.selectorLabel}>ACTIVE EXERCISE</Text>
-              <Text style={styles.selectorValue}>{selectedExercise}</Text>
-            </View>
-            <ChevronDown size={20} color={COLORS.textSecondary} style={{ transform: [{ rotate: showExercises ? '180deg' : '0deg' }] }} />
-          </TouchableOpacity>
-
+          <View>
+            <Text style={styles.selectorLabel}>ACTIVE EXERCISE</Text>
+            <Text style={styles.selectorValue}>{selectedExercise}</Text>
+          </View>
           <View style={styles.actionRow}>
             {status === 'idle' ? (
               <TouchableOpacity style={styles.startExerciseBtn} onPress={handleStart}>
@@ -373,36 +374,39 @@ export default function AICoachScreen() {
           </View>
         </View>
 
-        {/* Persistent/Toggled Exercise List */}
-        {showExercises && (
-          <View style={styles.exListContainer}>
-            <Text style={styles.exListTitle}>Select Movement</Text>
-            <ScrollView 
-              horizontal 
-              showsHorizontalScrollIndicator={false} 
-              style={styles.exList}
-              contentContainerStyle={styles.exListContent}
-            >
-              {EXERCISES.map(ex => (
-                <TouchableOpacity
-                  key={ex}
-                  style={[styles.exPill, selectedExercise === ex && styles.exPillActive]}
-                  onPress={() => { setSelectedExercise(ex); }}
-                >
-                  <Text style={[styles.exPillText, selectedExercise === ex && styles.exPillTextActive]}>{ex}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-      </View>
+        {/* Exercise selector — always visible */}
+        <View style={styles.exListContainer}>
+          <Text style={styles.exListTitle}>Select Movement</Text>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator
+            style={styles.exList}
+            contentContainerStyle={styles.exListContent}
+            nestedScrollEnabled
+          >
+            {EXERCISES.map(ex => (
+              <TouchableOpacity
+                key={ex}
+                style={[styles.exPill, selectedExercise === ex && styles.exPillActive]}
+                onPress={() => { setSelectedExercise(ex); }}
+              >
+                <Text style={[styles.exPillText, selectedExercise === ex && styles.exPillTextActive]}>{ex}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
-  visualContainer: { flex: 1, backgroundColor: '#111', overflow: 'hidden' },
+  // Fixed height so controls panel always has enough room below
+  visualContainer: { height: SCREEN_HEIGHT * 0.42, backgroundColor: '#111', overflow: 'hidden' },
+  // Scrollable controls panel that fills the rest of the screen
+  controlsLayer: { flex: 1, backgroundColor: '#1a1a1a', borderTopLeftRadius: 28, borderTopRightRadius: 28 },
+  controlsContent: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 40 },
   hudOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 10, padding: 25 },
   hudTop: { flexDirection: 'row', justifyContent: 'space-between' },
   hudBadge: { backgroundColor: COLORS.primary + '80', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
@@ -419,20 +423,20 @@ const styles = StyleSheet.create({
   statusSub: { color: COLORS.textSecondary, fontSize: 12, marginTop: 5 },
   hudStartBtn: { backgroundColor: COLORS.primary, paddingHorizontal: 40, paddingVertical: 18, borderRadius: 50 },
   hudStartBtnText: { color: '#fff', fontSize: 16, fontWeight: '900', letterSpacing: 2 },
-  controlsLayer: { backgroundColor: '#1a1a1a', paddingBottom: 40, paddingHorizontal: 20, borderTopLeftRadius: 30, borderTopRightRadius: 30 },
+  // controlsLayer replaced above
   controlsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 20 },
   selectorBtn: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   selectorLabel: { color: COLORS.textSecondary, fontSize: 10, fontWeight: 'bold', letterSpacing: 1 },
   selectorValue: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
   actionRow: { flexDirection: 'row', gap: 10 },
   circleAction: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#2a2a2a', alignItems: 'center', justifyContent: 'center' },
-  exListContainer: { marginTop: 15, paddingBottom: 15 },
-  exList: { flexGrow: 0, minHeight: 60 },
-  exListContent: { paddingHorizontal: 5, alignItems: 'center', paddingVertical: 5 },
-  exPill: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 15, backgroundColor: '#2a2a2a', marginRight: 15, borderWidth: 1, borderColor: '#333', minWidth: 110, alignItems: 'center', justifyContent: 'center' },
-  exPillActive: { backgroundColor: COLORS.primaryDim, borderColor: COLORS.primary },
-  exPillText: { color: COLORS.textSecondary, fontSize: 14, fontWeight: 'bold' },
-  exPillTextActive: { color: COLORS.primary },
+  exListContainer: { marginTop: 10, paddingBottom: 15 },
+  exList: { height: 70 },
+  exListContent: { paddingHorizontal: 4, alignItems: 'center', paddingVertical: 4 },
+  exPill: { height: 46, paddingHorizontal: 18, borderRadius: 14, backgroundColor: '#2e2e2e', marginRight: 12, borderWidth: 1, borderColor: '#444', minWidth: 100, alignItems: 'center', justifyContent: 'center' },
+  exPillActive: { backgroundColor: 'rgba(139, 92, 246, 0.25)', borderColor: COLORS.primary },
+  exPillText: { color: '#ffffff', fontSize: 13, fontWeight: '600' },
+  exPillTextActive: { color: COLORS.primary, fontWeight: '800' },
   exListTitle: {
     color: COLORS.textSecondary,
     fontSize: 12,

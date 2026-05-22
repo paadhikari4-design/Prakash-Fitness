@@ -10,7 +10,7 @@ import { useWorkout, Exercise } from '@/context/WorkoutContext';
 
 export default function AIGeneratorModal() {
   const router = useRouter();
-  const { setExercises, setWorkoutTime, readinessScore, recoveryModifier, history } = useWorkout();
+  const { setExercises, setWorkoutTime, readinessScore, recoveryModifier, intensityCategory, history } = useWorkout();
 
   const [fatigue, setFatigue] = useState(5);
   const [goal, setGoal] = useState<'Hypertrophy' | 'Fat Loss' | 'Strength'>('Hypertrophy');

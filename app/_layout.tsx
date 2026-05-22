@@ -64,6 +64,8 @@ function RootLayoutNav() {
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="profile-modal" options={{ presentation: 'modal', headerShown: false }} />
+          <Stack.Screen name="ai-generator-modal" options={{ presentation: 'modal', headerShown: false }} />
           <Stack.Screen name="progress-modal" options={{ presentation: 'modal', headerShown: false }} />
           <Stack.Screen name="nutrition-modal" options={{ presentation: 'modal', headerShown: false }} />
           <Stack.Screen name="timer-modal" options={{ presentation: 'modal', title: 'Rest Timer', headerTintColor: COLORS.text, headerStyle: { backgroundColor: COLORS.background } }} />

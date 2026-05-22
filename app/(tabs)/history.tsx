@@ -1,6 +1,6 @@
 import { StyleSheet, View, Text, ScrollView, Share, TouchableOpacity } from 'react-native';
 import { COLORS } from '@/constants/Colors';
-import { Calendar, Clock, Trophy, Share2 } from 'lucide-react-native';
+import { Calendar, Clock, Trophy, Share2, Dumbbell } from 'lucide-react-native';
 import { useWorkout } from '@/context/WorkoutContext';
 
 export default function HistoryScreen() {
@@ -16,8 +16,38 @@ export default function HistoryScreen() {
     }
   };
 
+  const totalVolume = history.reduce((sum, s) => sum + (parseInt(s.volume.replace(/[^0-9]/g, '')) || 0), 0);
+  const totalSets = history.reduce((sum, s) => sum + s.exercises.reduce((es, e) => es + e.sets.filter(st => st.done).length, 0), 0);
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      {/* Header */}
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.headerTitle}>Training Log</Text>
+          <Text style={styles.headerSubtitle}>{history.length} sessions recorded</Text>
+        </View>
+        <Dumbbell size={28} color={COLORS.primary} />
+      </View>
+
+      {/* Summary Stats */}
+      {history.length > 0 && (
+        <View style={styles.summaryRow}>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryValue}>{history.length}</Text>
+            <Text style={styles.summaryLabel}>Workouts</Text>
+          </View>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryValue}>{totalSets}</Text>
+            <Text style={styles.summaryLabel}>Total Sets</Text>
+          </View>
+          <View style={styles.summaryCard}>
+            <Text style={styles.summaryValue}>{(totalVolume / 1000).toFixed(0)}k</Text>
+            <Text style={styles.summaryLabel}>Total lbs</Text>
+          </View>
+        </View>
+      )}
+
       {history.length === 0 ? (
         <View style={styles.emptyState}>
           <Text style={styles.emptyStateText}>No history yet.</Text>
@@ -88,6 +118,50 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
+    paddingBottom: 100,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 20,
+    paddingHorizontal: 4,
+    marginBottom: 8,
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: COLORS.text,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 20,
+  },
+  summaryCard: {
+    flex: 1,
+    backgroundColor: COLORS.surface,
+    borderRadius: 16,
+    padding: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  summaryValue: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: COLORS.primary,
+    marginBottom: 2,
+  },
+  summaryLabel: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    fontWeight: '500',
   },
   card: {
     backgroundColor: COLORS.surface,

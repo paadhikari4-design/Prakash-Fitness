@@ -353,7 +353,18 @@ export function WorkoutProvider({ children }: { children: React.ReactNode }) {
   }, [isTimerActive, timeLeft]);
 
   const addWorkout = async (session: WorkoutSession) => {
-    if (!userId) return;
+    if (!userId) {
+      // Fallback: save to local state if Firebase Auth is not configured
+      console.warn("Firebase Auth not initialized. Saving workout locally for this session.");
+      setHistory(prev => [session, ...prev]);
+      setExercises([]);
+      setWorkoutTime(0);
+      NotificationService.sendLocalNotification(
+        "Workout Logged Locally! 🔥",
+        `Great job on "${session.title}". Vol: ${session.volume}`
+      );
+      return;
+    }
     try {
       await addDoc(collection(db, 'users', userId, 'workouts'), {
         ...session,
