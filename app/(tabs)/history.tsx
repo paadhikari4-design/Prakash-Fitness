@@ -3,9 +3,82 @@ import { COLORS } from '@/constants/Colors';
 import { Calendar, Clock, Trophy, Share2, Dumbbell } from 'lucide-react-native';
 import { useWorkout } from '@/context/WorkoutContext';
 
+const DEMO_HISTORY = [
+  {
+    id: 'demo1',
+    title: 'Barbell Bench Press',
+    date: 'Thu, May 22, 5:30 AM',
+    duration: '52:14',
+    volume: '14,250 lbs',
+    prs: 1,
+    exercises: [
+      { id: 'e1', name: 'Barbell Bench Press', sets: [{ id: 's1', weight: '185', reps: '5', done: true }, { id: 's2', weight: '185', reps: '5', done: true }, { id: 's3', weight: '185', reps: '4', done: true }] },
+      { id: 'e2', name: 'Incline Dumbbell Press', sets: [{ id: 's4', weight: '70', reps: '10', done: true }, { id: 's5', weight: '70', reps: '9', done: true }] },
+      { id: 'e3', name: 'Cable Crossover', sets: [{ id: 's6', weight: '40', reps: '12', done: true }, { id: 's7', weight: '40', reps: '12', done: true }, { id: 's8', weight: '40', reps: '11', done: true }] },
+    ],
+  },
+  {
+    id: 'demo2',
+    title: 'Barbell Back Squat',
+    date: 'Tue, May 20, 6:00 AM',
+    duration: '01:04:30',
+    volume: '18,600 lbs',
+    prs: 0,
+    exercises: [
+      { id: 'e4', name: 'Barbell Back Squat', sets: [{ id: 's9', weight: '225', reps: '5', done: true }, { id: 's10', weight: '225', reps: '5', done: true }, { id: 's11', weight: '225', reps: '5', done: true }] },
+      { id: 'e5', name: 'Romanian Deadlift (RDL)', sets: [{ id: 's12', weight: '185', reps: '8', done: true }, { id: 's13', weight: '185', reps: '8', done: true }] },
+      { id: 'e6', name: 'Leg Press', sets: [{ id: 's14', weight: '350', reps: '10', done: true }, { id: 's15', weight: '350', reps: '10', done: true }, { id: 's16', weight: '350', reps: '8', done: true }] },
+      { id: 'e7', name: 'Seated Calf Raises', sets: [{ id: 's17', weight: '90', reps: '15', done: true }, { id: 's18', weight: '90', reps: '15', done: true }] },
+    ],
+  },
+  {
+    id: 'demo3',
+    title: 'Deadlift',
+    date: 'Sun, May 18, 7:15 AM',
+    duration: '48:55',
+    volume: '21,480 lbs',
+    prs: 2,
+    exercises: [
+      { id: 'e8', name: 'Deadlift', sets: [{ id: 's19', weight: '315', reps: '3', done: true }, { id: 's20', weight: '315', reps: '3', done: true }, { id: 's21', weight: '335', reps: '2', done: true }] },
+      { id: 'e9', name: 'Pull-up', sets: [{ id: 's22', weight: '0', reps: '10', done: true }, { id: 's23', weight: '0', reps: '8', done: true }, { id: 's24', weight: '0', reps: '7', done: true }] },
+      { id: 'e10', name: 'Barbell Bent Over Row', sets: [{ id: 's25', weight: '155', reps: '8', done: true }, { id: 's26', weight: '155', reps: '8', done: true }] },
+    ],
+  },
+  {
+    id: 'demo4',
+    title: 'Overhead Press',
+    date: 'Fri, May 16, 5:45 AM',
+    duration: '43:20',
+    volume: '9,870 lbs',
+    prs: 0,
+    exercises: [
+      { id: 'e11', name: 'Overhead Press', sets: [{ id: 's27', weight: '115', reps: '6', done: true }, { id: 's28', weight: '115', reps: '5', done: true }, { id: 's29', weight: '115', reps: '5', done: true }] },
+      { id: 'e12', name: 'Arnold Press', sets: [{ id: 's30', weight: '45', reps: '10', done: true }, { id: 's31', weight: '45', reps: '10', done: true }] },
+      { id: 'e13', name: 'Lateral Raises', sets: [{ id: 's32', weight: '20', reps: '15', done: true }, { id: 's33', weight: '20', reps: '15', done: true }, { id: 's34', weight: '20', reps: '12', done: true }] },
+    ],
+  },
+  {
+    id: 'demo5',
+    title: 'Full Body A',
+    date: 'Wed, May 14, 6:30 AM',
+    duration: '55:10',
+    volume: '11,240 lbs',
+    prs: 1,
+    exercises: [
+      { id: 'e14', name: 'Barbell Squat', sets: [{ id: 's35', weight: '185', reps: '8', done: true }, { id: 's36', weight: '185', reps: '8', done: true }] },
+      { id: 'e15', name: 'Bench Press', sets: [{ id: 's37', weight: '155', reps: '10', done: true }, { id: 's38', weight: '155', reps: '9', done: true }] },
+      { id: 'e16', name: 'Deadlift', sets: [{ id: 's39', weight: '225', reps: '5', done: true }] },
+    ],
+  },
+];
+
 export default function HistoryScreen() {
   const { history } = useWorkout();
-  
+
+  // Use real history if available, otherwise show demo data
+  const displayHistory = history.length > 0 ? history : DEMO_HISTORY;
+  const isDemo = history.length === 0;
+
   const handleShare = async (session: any) => {
     try {
       const exSummary = session.exercises.map((e: any) => `- ${e.name}`).join('\n');
@@ -16,8 +89,8 @@ export default function HistoryScreen() {
     }
   };
 
-  const totalVolume = history.reduce((sum, s) => sum + (parseInt(s.volume.replace(/[^0-9]/g, '')) || 0), 0);
-  const totalSets = history.reduce((sum, s) => sum + s.exercises.reduce((es, e) => es + e.sets.filter(st => st.done).length, 0), 0);
+  const totalVolume = displayHistory.reduce((sum, s) => sum + (parseInt(s.volume.replace(/[^0-9]/g, '')) || 0), 0);
+  const totalSets = displayHistory.reduce((sum, s) => sum + s.exercises.reduce((es, e) => es + e.sets.filter(st => st.done).length, 0), 0);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -25,36 +98,36 @@ export default function HistoryScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Training Log</Text>
-          <Text style={styles.headerSubtitle}>{history.length} sessions recorded</Text>
+          <Text style={styles.headerSubtitle}>{displayHistory.length} sessions recorded</Text>
         </View>
         <Dumbbell size={28} color={COLORS.primary} />
       </View>
 
       {/* Summary Stats */}
-      {history.length > 0 && (
-        <View style={styles.summaryRow}>
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryValue}>{history.length}</Text>
-            <Text style={styles.summaryLabel}>Workouts</Text>
-          </View>
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryValue}>{totalSets}</Text>
-            <Text style={styles.summaryLabel}>Total Sets</Text>
-          </View>
-          <View style={styles.summaryCard}>
-            <Text style={styles.summaryValue}>{(totalVolume / 1000).toFixed(0)}k</Text>
-            <Text style={styles.summaryLabel}>Total lbs</Text>
-          </View>
+      <View style={styles.summaryRow}>
+        <View style={styles.summaryCard}>
+          <Text style={styles.summaryValue}>{displayHistory.length}</Text>
+          <Text style={styles.summaryLabel}>Workouts</Text>
+        </View>
+        <View style={styles.summaryCard}>
+          <Text style={styles.summaryValue}>{totalSets}</Text>
+          <Text style={styles.summaryLabel}>Total Sets</Text>
+        </View>
+        <View style={styles.summaryCard}>
+          <Text style={styles.summaryValue}>{(totalVolume / 1000).toFixed(0)}k</Text>
+          <Text style={styles.summaryLabel}>Total lbs</Text>
+        </View>
+      </View>
+
+      {/* Demo badge */}
+      {isDemo && (
+        <View style={styles.demoBanner}>
+          <Text style={styles.demoBannerText}>📊 Sample data — complete a workout to see your real history</Text>
         </View>
       )}
 
-      {history.length === 0 ? (
-        <View style={styles.emptyState}>
-          <Text style={styles.emptyStateText}>No history yet.</Text>
-          <Text style={styles.emptyStateSubtext}>Complete a workout to see it here!</Text>
-        </View>
-      ) : (
-        history.map((session) => (
+      {displayHistory.map((session) => (
+
           <View key={session.id} style={styles.card}>
             <View style={styles.cardHeader}>
               <View style={{ flex: 1 }}>
@@ -105,8 +178,7 @@ export default function HistoryScreen() {
               </View>
             )}
           </View>
-        ))
-      )}
+        ))}
     </ScrollView>
   );
 }
@@ -151,6 +223,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: COLORS.border,
+  },
+  demoBanner: {
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.3)',
+  },
+  demoBannerText: {
+    color: COLORS.primary,
+    fontSize: 13,
+    textAlign: 'center',
+    fontWeight: '500',
   },
   summaryValue: {
     fontSize: 22,
