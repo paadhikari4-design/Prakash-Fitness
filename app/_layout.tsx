@@ -69,6 +69,7 @@ function RootLayoutNav() {
           <Stack.Screen name="progress-modal" options={{ presentation: 'modal', headerShown: false }} />
           <Stack.Screen name="nutrition-modal" options={{ presentation: 'modal', headerShown: false }} />
           <Stack.Screen name="timer-modal" options={{ presentation: 'modal', title: 'Rest Timer', headerTintColor: COLORS.text, headerStyle: { backgroundColor: COLORS.background } }} />
+          <Stack.Screen name="chat-modal" options={{ presentation: 'modal', headerShown: false }} />
         </Stack>
       </ThemeProvider>
     </WorkoutProvider>

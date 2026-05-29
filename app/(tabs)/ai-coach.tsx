@@ -2,9 +2,10 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useIsFocused } from '@react-navigation/native';
 import { View, Text, StyleSheet, TouchableOpacity, Platform, Dimensions, ScrollView } from 'react-native';
 import { COLORS } from '@/constants/Colors';
-import { Activity, ShieldAlert, Zap, Target, RotateCcw, X, Info, ChevronDown } from 'lucide-react-native';
+import { Activity, ShieldAlert, Zap, Target, RotateCcw, X, Info, ChevronDown, Brain } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+import { useRouter } from 'expo-router';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -13,6 +14,7 @@ type FeedbackLevel = 'good' | 'warn' | 'idle';
 
 export default function AICoachScreen() {
   const isFocused = useIsFocused();
+  const router = useRouter();
 
   // ── All hooks MUST be called before any conditional return ──────────
   const [status, setStatus] = useState<'idle' | 'loading' | 'running' | 'error' | 'denied'>('idle');
@@ -395,6 +397,24 @@ export default function AICoachScreen() {
             ))}
           </ScrollView>
         </View>
+
+        <TouchableOpacity 
+          style={styles.chatCoachCard}
+          onPress={() => router.push('/chat-modal')}
+          activeOpacity={0.8}
+        >
+          <LinearGradient
+            colors={['rgba(217, 70, 239, 0.1)', 'rgba(139, 92, 246, 0.15)']}
+            style={styles.chatCoachCardInner}
+          >
+            <Brain size={20} color="#d946ef" fill="rgba(217, 70, 239, 0.2)" />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.chatCoachCardTitle}>Have posture or breathing questions?</Text>
+              <Text style={styles.chatCoachCardSub}>Ask Prakash AI Coach for form cue guides, custom routines, and physical recovery tracking.</Text>
+            </View>
+            <ChevronDown size={16} color={COLORS.textSecondary} style={{ transform: [{ rotate: '-90deg' }] }} />
+          </LinearGradient>
+        </TouchableOpacity>
       </ScrollView>
     </View>
   );
@@ -466,5 +486,29 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '800',
     fontSize: 15,
+  },
+  chatCoachCard: {
+    marginTop: 20,
+    borderRadius: 16,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.25)',
+  },
+  chatCoachCardInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    gap: 12,
+  },
+  chatCoachCardTitle: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  chatCoachCardSub: {
+    color: COLORS.textSecondary,
+    fontSize: 12,
+    lineHeight: 18,
   },
 });

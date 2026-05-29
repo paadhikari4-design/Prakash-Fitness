@@ -26,7 +26,8 @@ import {
   Footprints, 
   AlertTriangle, 
   Zap, 
-  Utensils 
+  Utensils,
+  Brain
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { useWorkout } from '@/context/WorkoutContext';
@@ -213,6 +214,28 @@ export default function DashboardScreen() {
             <Text style={styles.readinessSubtext}>{readinessText}</Text>
           </View>
         </View>
+
+        <TouchableOpacity 
+          style={{ marginBottom: 24 }} 
+          activeOpacity={0.8}
+          onPress={() => router.push('/chat-modal')}
+        >
+          <LinearGradient 
+            colors={['#d946ef', '#8b5cf6']} 
+            style={styles.aiGeneratorBtn}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <View style={styles.aiGeneratorContent}>
+              <Brain size={24} color={COLORS.background} fill={COLORS.background} />
+              <View style={{ marginLeft: 12, flex: 1 }}>
+                <Text style={styles.aiGeneratorTitle}>Prakash AI Coach Chat</Text>
+                <Text style={styles.aiGeneratorSub}>Personalized fitness advice & routine builder</Text>
+              </View>
+              <ChevronRight size={20} color={'rgba(255,255,255,0.7)'} />
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
 
         <TouchableOpacity 
           style={{ marginBottom: 24 }} 
